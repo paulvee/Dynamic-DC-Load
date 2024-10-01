@@ -15,9 +15,9 @@ The instrument specifications are:
   
   • Maximum power 180W @25 degrees ambient temperature
   
-  • Volt Accuracy: 0.2%
+  • Volt Accuracy: 0.003%
   
-  • Current Accuracy: 0.6%
+  • Current Accuracy: 0.004%
   
   • Power input: 12VDC Wall-wart 0.5A with reverse polarity protection to -24V and PTC fuse
   
