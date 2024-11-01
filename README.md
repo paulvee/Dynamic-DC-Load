@@ -9,19 +9,25 @@ The instrument specifications are:
   
   • Reverse polarity protection to -100V and a 10A fuse.
   
-  • DUT is disconnected by a relays for invalid inputs like reverse polarity.
+  • DUT is disconnected by a relay for invalid inputs like reverse polarity.
   
   • Maximum current of 10A @ 40V
   
   • Maximum power 180W @25 degrees ambient temperature
   
-  • Volt Accuracy: 0.003%
+  • Volt Accuracy: 0.3%
   
-  • Current Accuracy: 0.004%
+  • Current Accuracy: 0.4%
+  
+  • Maximum power 180W @25 degrees ambient temperature (heatsink temp 85C)
+  
+  • Off state DUT current 1.9uA at 2V, 57.7uA at 60V.
   
   • Power input: 12VDC Wall-wart 0.5A with reverse polarity protection to -24V and PTC fuse
   
-  • CC & CV modes with real-time operation, CP, CR and Battery Mode supported in software.
+  • CC, CV and battery modes with hardware real-time operation.
+  
+  • CP and CR modes have active software regulation (resolution +/-156uA).
   
   • Pulse/transient mode supported by an external Function Generator. 5V=10A
   
@@ -30,6 +36,8 @@ The instrument specifications are:
   • GUI: 128x128 OLED 1.5' color display and a rotary encoder with a dual button functions.
   
   • Two temperature controlled fans.
+  
+  • Protection for over voltage, over current, over power and over temperature limits
   
   • Overall dimensions: 21cm long, 18cm wide and a height of 118cm.
   
