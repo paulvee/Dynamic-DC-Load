@@ -25,7 +25,7 @@ The instrument specifications are:
   
   • Power input: 12VDC Wall-wart 0.5A with reverse polarity protection to -24V and PTC fuse
   
-  • CC, CV and battery modes with hardware real-time operation.
+  • CC, CV and battery test modes with hardware real-time operation.
   
   • CP and CR modes have active software regulation (resolution +/-156uA).
   
