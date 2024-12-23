@@ -42,7 +42,8 @@ The instrument specifications are:
   • Overall dimensions: 21cm long, 18cm wide and a height of 118cm.
   
   • Weight: approx. 1110 grams
-  
+
+  For those that have difficulties getting the enclosure, Bud has created 3D files to print them yourself, or order them through a 3P printer. The files are in the 3D-Print enclosure ZIP file.
 
 The project is described in details on my Blog:
 
