@@ -395,30 +395,62 @@ class MainWindow(QMainWindow):
         """Create current readings display panel"""
         group = QGroupBox("Current Readings")
         layout = QGridLayout()
+        layout.setHorizontalSpacing(5)  # Tight horizontal spacing
+        layout.setVerticalSpacing(3)    # Tight vertical spacing
         
-        # Elapsed time
-        layout.addWidget(QLabel("Elapsed Time:"), 0, 0)
+        # Left column - Current readings (bold/large)
+        row = 0
+        layout.addWidget(QLabel("Time:"), row, 0)
         self.elapsed_label = QLabel("--:--:--")
         self.elapsed_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        layout.addWidget(self.elapsed_label, 0, 1)
+        layout.addWidget(self.elapsed_label, row, 1)
         
-        # Voltage
-        layout.addWidget(QLabel("Voltage:"), 1, 0)
-        self.voltage_label = QLabel("-------- V")
-        self.voltage_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        layout.addWidget(self.voltage_label, 1, 1)
-        
-        # Current
-        layout.addWidget(QLabel("Current:"), 2, 0)
-        self.current_label = QLabel("-------- mA")
-        self.current_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        layout.addWidget(self.current_label, 2, 1)
-        
-        # Capacity
-        layout.addWidget(QLabel("Capacity:"), 3, 0)
-        self.capacity_label = QLabel("-------- mAh")
+        row += 1
+        layout.addWidget(QLabel("Capacity:"), row, 0)
+        self.capacity_label = QLabel("-------")
         self.capacity_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        layout.addWidget(self.capacity_label, 3, 1)
+        layout.addWidget(self.capacity_label, row, 1)
+        
+        row += 1
+        layout.addWidget(QLabel("Voltage:"), row, 0)
+        self.voltage_label = QLabel("-------")
+        self.voltage_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        layout.addWidget(self.voltage_label, row, 1)
+        
+        row += 1
+        layout.addWidget(QLabel("Current:"), row, 0)
+        self.current_label = QLabel("-------")
+        self.current_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        layout.addWidget(self.current_label, row, 1)
+        
+        # Add vertical spacer between columns
+        layout.setColumnMinimumWidth(2, 20)
+        
+        # Right column - Test settings (normal font)
+        row = 0
+        layout.addWidget(QLabel("Battery type:"), row, 3)
+        self.display_battery_type = QLabel("---")
+        layout.addWidget(self.display_battery_type, row, 4)
+        
+        row += 1
+        layout.addWidget(QLabel("Load current (mA):"), row, 3)
+        self.display_current = QLabel("---")
+        layout.addWidget(self.display_current, row, 4)
+        
+        row += 1
+        layout.addWidget(QLabel("Cutoff voltage (V):"), row, 3)
+        self.display_cutoff = QLabel("---")
+        layout.addWidget(self.display_cutoff, row, 4)
+        
+        row += 1
+        layout.addWidget(QLabel("Rated Capacity (mAh):"), row, 3)
+        self.display_capacity = QLabel("---")
+        layout.addWidget(self.display_capacity, row, 4)
+        
+        row += 1
+        layout.addWidget(QLabel("Max. discharge time:"), row, 3)
+        self.display_max_time = QLabel("---")
+        layout.addWidget(self.display_max_time, row, 4)
         
         group.setLayout(layout)
         return group
@@ -759,6 +791,16 @@ class MainWindow(QMainWindow):
         self.test_data = TestData(parameters=params)
         self.test_data.state = TestState.STARTING
         
+        # Update display panel with test settings
+        self.display_battery_type.setText(self.battery_type_combo.currentText())
+        self.display_current.setText(f"{params.current_ma}")
+        self.display_cutoff.setText(f"{params.cutoff_voltage:.2f}")
+        self.display_capacity.setText(f"{params.capacity_mah}")
+        max_time = params.calculate_max_time_minutes()
+        hours = int(max_time // 60)
+        minutes = int(max_time % 60)
+        self.display_max_time.setText(f"{hours} hr : {minutes} min")
+        
         # Clear chart
         self.voltage_curve.setData([], [])
         self.current_curve.setData([], [])
@@ -852,6 +894,11 @@ class MainWindow(QMainWindow):
             self.voltage_label.setText("-------- V")
             self.current_label.setText("-------- mA")
             self.capacity_label.setText("-------- mAh")
+            self.display_battery_type.setText("---")
+            self.display_current.setText("---")
+            self.display_cutoff.setText("---")
+            self.display_capacity.setText("---")
+            self.display_max_time.setText("---")
             self.voltage_curve.setData([], [])
             self.current_curve.setData([], [])
             self.status_label1.setText("")
