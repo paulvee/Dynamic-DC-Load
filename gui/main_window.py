@@ -106,11 +106,17 @@ class MainWindow(QMainWindow):
         self.config = ConfigManager()
         self.test_data = TestData(parameters=self.config.get_test_parameters())
         self.serial_worker: Optional[SerialWorker] = None
+        self.last_port_list = []  # Track port changes
         
         # Initialize UI
         self.init_ui()
         self.load_settings()
         self.update_ui_state()
+        
+        # Start port monitoring timer (check every 2 seconds)
+        self.port_monitor_timer = QTimer()
+        self.port_monitor_timer.timeout.connect(self.check_port_changes)
+        self.port_monitor_timer.start(2000)  # 2 second interval
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -440,6 +446,41 @@ class MainWindow(QMainWindow):
                 self.port_combo.setCurrentIndex(last_port_idx)
             
             self.statusBar().showMessage(f"Found {len(ports)} serial port(s)", 3000)
+        
+        # Update tracked port list
+        self.last_port_list = ports
+    
+    def check_port_changes(self):
+        """Periodically check for port changes (plug/unplug events)"""
+        # Don't check if we're connected or running a test
+        if self.controller.is_connected() or self.test_data.state == TestState.RUNNING:
+            return
+        
+        current_ports = SerialController.get_available_ports()
+        
+        # Check if port list has changed
+        if set(current_ports) != set(self.last_port_list):
+            # Save current selection
+            current_port = self.port_combo.currentData()
+            
+            # Refresh the list
+            self.refresh_ports()
+            
+            # Try to restore selection if port still exists
+            if current_port:
+                for i in range(self.port_combo.count()):
+                    if self.port_combo.itemData(i) == current_port:
+                        self.port_combo.setCurrentIndex(i)
+                        break
+            
+            # Show notification
+            added = set(current_ports) - set(self.last_port_list)
+            removed = set(self.last_port_list) - set(current_ports)
+            
+            if added:
+                self.statusBar().showMessage(f"Port connected: {', '.join(added)}", 3000)
+            if removed:
+                self.statusBar().showMessage(f"Port disconnected: {', '.join(removed)}", 3000)
     
     def populate_voltage_combo(self):
         """Populate voltage cutoff combo box"""
@@ -835,6 +876,9 @@ class MainWindow(QMainWindow):
                 self.protocol.cancel_test()
         
         # Cleanup
+        if self.port_monitor_timer:
+            self.port_monitor_timer.stop()
+        
         if self.serial_worker:
             self.serial_worker.stop()
             self.serial_worker.wait()
