@@ -4,7 +4,7 @@ Dialog windows for Battery Tester application
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QCheckBox
+    QLabel
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap, QFont
@@ -67,13 +67,13 @@ class AboutDialog(QDialog):
 
 
 class NewTestDialog(QDialog):
-    """Dialog for confirming new test with controller reset option"""
+    """Dialog for confirming new test"""
     
     def __init__(self, reset_default: bool = False, parent=None):
         super().__init__(parent)
         self.setWindowTitle("New Test")
         self.setModal(True)
-        self.setFixedSize(350, 150)
+        self.setFixedSize(350, 120)
         
         layout = QVBoxLayout()
         
@@ -84,17 +84,6 @@ class NewTestDialog(QDialog):
         )
         message.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(message)
-        
-        layout.addSpacing(10)
-        
-        # Reset option
-        self.reset_checkbox = QCheckBox("Reset Arduino/ESP32 controller (DTR)")
-        self.reset_checkbox.setChecked(reset_default)
-        self.reset_checkbox.setToolTip(
-            "Toggles DTR line to reset the controller.\n"
-            "This will clear any residual state in the controller."
-        )
-        layout.addWidget(self.reset_checkbox)
         
         layout.addStretch()
         

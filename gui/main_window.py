@@ -666,16 +666,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Test Running", "Please stop current test first")
             return
         
-        # Ask for confirmation with reset option
+        # Ask for confirmation
         from .dialogs import NewTestDialog
-        dialog = NewTestDialog(self.config.get_reset_controller(), self)
+        dialog = NewTestDialog(parent=self)
         if dialog.exec():
-            reset = dialog.reset_checkbox.isChecked()
-            self.config.set_reset_controller(reset)
-            
-            if reset and self.protocol:
-                self.protocol.reset_controller()
-            
             # Clear displays
             self.test_data.clear()
             self.elapsed_label.setText("--:--:--")
