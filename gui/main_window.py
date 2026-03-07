@@ -114,7 +114,7 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         """Initialize the user interface"""
-        self.setWindowTitle(f"Lithium Battery Tester - {self.VERSION}")
+        self.setWindowTitle(f"Battery Tester - {self.VERSION}")
         
         # Restore window geometry
         x, y, width, height = self.config.get_window_geometry()

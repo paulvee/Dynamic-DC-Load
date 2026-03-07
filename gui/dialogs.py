@@ -22,7 +22,7 @@ class AboutDialog(QDialog):
         layout.setSpacing(15)
         
         # Title
-        title = QLabel("Lithium Battery Tester")
+        title = QLabel("Battery Tester")
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)
