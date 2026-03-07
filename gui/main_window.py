@@ -6,9 +6,9 @@ PyQt6-based GUI matching the original Delphi application layout.
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QPushButton, QLabel, QComboBox, QSpinBox, QStatusBar, QGroupBox,
-    QMessageBox, QFileDialog, QMenuBar, QMenu, QToolBar, QSizePolicy,
-    QTabWidget, QTextEdit, QStyledItemDelegate
+    QPushButton, QLabel, QComboBox, QSpinBox, QDoubleSpinBox, QStackedWidget,
+    QStatusBar, QGroupBox, QMessageBox, QFileDialog, QMenuBar, QMenu,
+    QToolBar, QSizePolicy, QTabWidget, QTextEdit, QStyledItemDelegate
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QAction, QIcon, QColor
@@ -328,17 +328,18 @@ class MainWindow(QMainWindow):
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
         layout.setHorizontalSpacing(5)  # Minimal gap between labels and widgets
+        layout.setVerticalSpacing(4)    # Consistent vertical spacing between rows
         layout.setColumnStretch(0, 0)  # Don't stretch label column
         layout.setColumnStretch(1, 1)  # Allow widget column to expand
-        
-        # Battery type (for reference only, doesn't affect functionality)
+
+        # Battery type
         label = QLabel("Battery type:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 0, 0)
         self.battery_type_combo = QComboBox()
         self.battery_type_combo.addItems([
-            "Lithium (3.7v)",
-            "Lithium (3.8v)", 
+            "LiPo/Li-Ion (3.7v)",
+            "LiHV (3.8v)",
             "LiFePO4 (3.2v)",
             "NiMH (1.2v)",
             "NiCd (1.2v)",
@@ -346,48 +347,89 @@ class MainWindow(QMainWindow):
             "Alkaline (1.5v)",
             "Other"
         ])
-        # Reduce dropdown item spacing with custom delegate
         self.battery_type_combo.setItemDelegate(CompactDelegate(self.battery_type_combo))
         layout.addWidget(self.battery_type_combo, 0, 1)
-        
+
+        # Cell count row (shown only for Lithium types)
+        self.cell_count_label = QLabel("Cell count:")
+        self.cell_count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.cell_count_label, 1, 0)
+        self.cell_count_combo = QComboBox()
+        self.cell_count_combo.addItems([str(n) for n in range(1, 25)] + ["Enter max voltage"])
+        self.cell_count_combo.setItemDelegate(CompactDelegate(self.cell_count_combo))
+        self.cell_count_combo.currentIndexChanged.connect(self.on_cell_count_changed)
+        layout.addWidget(self.cell_count_combo, 1, 1)
+
+        # Connect battery type change AFTER cell_count_combo exists
+        self.battery_type_combo.currentIndexChanged.connect(self.on_battery_type_changed)
+
         # Load current (mA)
         label = QLabel("Load current (mA):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 1, 0)
+        layout.addWidget(label, 2, 0)
         self.current_spin = QSpinBox()
         self.current_spin.setRange(5, 1500)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.valueChanged.connect(self.on_current_changed)
-        layout.addWidget(self.current_spin, 1, 1)
-        
-        # Cutoff voltage (V)
-        label = QLabel("Cutoff voltage (V):")
+        layout.addWidget(self.current_spin, 2, 1)
+
+        # Cutoff voltage (V) — combo for list mode, spinbox for free-entry mode
+        label = QLabel("Cutoff Voltage (V):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 2, 0)
+        layout.addWidget(label, 3, 0)
+
+        self.voltage_input_stack = QStackedWidget()
+
         self.voltage_combo = QComboBox()
         self.populate_voltage_combo()
-        # Reduce dropdown item spacing with custom delegate
         self.voltage_combo.setItemDelegate(CompactDelegate(self.voltage_combo))
-        layout.addWidget(self.voltage_combo, 2, 1)
-        
+        self.voltage_combo.currentIndexChanged.connect(self.update_effective_cutoff_display)
+        self.voltage_input_stack.addWidget(self.voltage_combo)   # index 0
+
+        self.voltage_spinbox = QDoubleSpinBox()
+        self.voltage_spinbox.setRange(0.0, 200.0)
+        self.voltage_spinbox.setDecimals(2)
+        self.voltage_spinbox.setSingleStep(0.1)
+        self.voltage_spinbox.setValue(4.20)
+        self.voltage_spinbox.valueChanged.connect(self.update_effective_cutoff_display)
+        self.voltage_input_stack.addWidget(self.voltage_spinbox)  # index 1
+
+        # Constrain stack to single-line height
+        self.voltage_input_stack.setFixedHeight(self.voltage_combo.sizeHint().height())
+
+        layout.addWidget(self.voltage_input_stack, 3, 1)
+
+        # Effective cutoff (shown only in cell-count mode)
+        self.effective_cutoff_label = QLabel("Effective cutoff:")
+        self.effective_cutoff_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.effective_cutoff_label, 4, 0)
+        self.effective_cutoff_value = QLabel("---")
+        layout.addWidget(self.effective_cutoff_value, 4, 1)
+
         # Capacity (mAh)
         label = QLabel("Rated Capacity (mAh):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 3, 0)
+        layout.addWidget(label, 5, 0)
         self.capacity_spin = QSpinBox()
         self.capacity_spin.setRange(5, 10000)
         self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
         self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
-        layout.addWidget(self.capacity_spin, 3, 1)
-        
+        layout.addWidget(self.capacity_spin, 5, 1)
+
         # Max discharge time (calculated)
         label = QLabel("Max. discharge time:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 4, 0)
+        layout.addWidget(label, 6, 0)
         self.time_label = QLabel("--:--")
-        layout.addWidget(self.time_label, 4, 1)
+        layout.addWidget(self.time_label, 6, 1)
         self.update_estimated_time()
-        
+
+        # Push all rows to the top — absorbs any extra vertical space
+        layout.setRowStretch(7, 1)
+
+        # Set initial visibility based on default battery type
+        self.on_battery_type_changed()
+
         group.setLayout(layout)
         return group
     
@@ -438,7 +480,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.display_current, row, 4)
         
         row += 1
-        layout.addWidget(QLabel("Cutoff voltage (V):"), row, 3)
+        layout.addWidget(QLabel("Cutoff Voltage (V):"), row, 3)
         self.display_cutoff = QLabel("---")
         layout.addWidget(self.display_cutoff, row, 4)
         
@@ -594,21 +636,32 @@ class MainWindow(QMainWindow):
             if removed:
                 self.statusBar().showMessage(f"Port disconnected: {', '.join(removed)}", 3000)
     
-    def populate_voltage_combo(self):
-        """Populate voltage cutoff combo box"""
-        voltages = [
-            7.50,
-            4.20, 4.15, 4.10, 4.05, 4.00, 3.95, 3.90, 3.85, 3.80, 3.75,
-            3.70, 3.65, 3.60, 3.55, 3.50, 3.45, 3.40, 3.35, 3.30, 3.25,
-            3.20, 3.15, 3.10, 3.05, 3.00, 2.95, 2.90, 2.85, 2.80, 2.75,
-            2.70, 2.65, 2.60, 2.55, 2.50, 0.80, 0.00
-        ]
-        
-        for v in voltages:
-            self.voltage_combo.addItem(f"{v:.2f}")
-        
-        # Set default to 3.00V (index 25)
-        self.voltage_combo.setCurrentIndex(25)
+    def populate_voltage_combo(self, per_cell: bool = False):
+        """Populate voltage cutoff combo box.
+
+        When per_cell is True, shows per-cell cutoff voltages for LiPo (2.5–3.5 V in 0.1 V steps).
+        When False, shows the full absolute voltage list.
+        """
+        self.voltage_combo.clear()
+        if per_cell:
+            # Per-cell cutoff voltages: 3.5 V down to 2.5 V in 0.1 V steps
+            voltages = [round(3.5 - i * 0.1, 1) for i in range(11)]
+            for v in voltages:
+                self.voltage_combo.addItem(f"{v:.2f}")
+            # Default to 3.00 V per cell (index 5)
+            self.voltage_combo.setCurrentIndex(5)
+        else:
+            voltages = [
+                7.50,
+                4.20, 4.15, 4.10, 4.05, 4.00, 3.95, 3.90, 3.85, 3.80, 3.75,
+                3.70, 3.65, 3.60, 3.55, 3.50, 3.45, 3.40, 3.35, 3.30, 3.25,
+                3.20, 3.15, 3.10, 3.05, 3.00, 2.95, 2.90, 2.85, 2.80, 2.75,
+                2.70, 2.65, 2.60, 2.55, 2.50, 0.80, 0.00
+            ]
+            for v in voltages:
+                self.voltage_combo.addItem(f"{v:.2f}")
+            # Default to 3.00 V (index 25)
+            self.voltage_combo.setCurrentIndex(25)
     
     def load_settings(self):
         """Load saved settings"""
@@ -667,6 +720,8 @@ class MainWindow(QMainWindow):
         # Enable/disable parameters during test
         self.current_spin.setEnabled(not is_running)
         self.voltage_combo.setEnabled(not is_running)
+        self.voltage_spinbox.setEnabled(not is_running)
+        self.cell_count_combo.setEnabled(not is_running)
         self.capacity_spin.setEnabled(not is_running)
     
     # Event handlers
@@ -705,7 +760,51 @@ class MainWindow(QMainWindow):
             self.capacity_spin.setSingleStep(25)
         else:
             self.capacity_spin.setSingleStep(50)
-    
+
+    def _is_lithium_type(self) -> bool:
+        """Return True for lithium battery types that support cell counting"""
+        text = self.battery_type_combo.currentText()
+        return text.startswith("LiPo") or text.startswith("LiHV") or text.startswith("Lithium")
+
+    def on_battery_type_changed(self):
+        """Show/hide cell count row and update voltage input for Lithium types"""
+        is_lithium = self._is_lithium_type()
+        self.cell_count_label.setVisible(is_lithium)
+        self.cell_count_combo.setVisible(is_lithium)
+        if is_lithium:
+            self.on_cell_count_changed()
+        else:
+            self.voltage_input_stack.setCurrentIndex(0)  # show combo
+            self.populate_voltage_combo(per_cell=False)
+        self.update_effective_cutoff_display()
+
+    def on_cell_count_changed(self):
+        """Switch voltage input between per-cell combo and free-entry spinbox"""
+        if self.cell_count_combo.currentText() == "Enter max voltage":
+            self.voltage_input_stack.setCurrentIndex(1)  # show spinbox
+        else:
+            self.voltage_input_stack.setCurrentIndex(0)  # show combo
+            self.populate_voltage_combo(per_cell=True)
+        self.update_effective_cutoff_display()
+
+    def update_effective_cutoff_display(self):
+        """Update the live effective cutoff label in the parameters panel and Current Readings panel"""
+        in_cell_mode = self._cell_count_mode_active()
+        self.effective_cutoff_label.setVisible(in_cell_mode)
+        self.effective_cutoff_value.setVisible(in_cell_mode)
+        if in_cell_mode:
+            if not self.voltage_combo.currentText():
+                return
+            per_cell = float(self.voltage_combo.currentText())
+            cell_count = int(self.cell_count_combo.currentText())
+            total = round(per_cell * cell_count, 2)
+            self.effective_cutoff_value.setText(f"{total:.2f} V  ({per_cell:.2f} V/cell)")
+            self.display_cutoff.setText(f"{total:.2f} ({per_cell:.2f} V/cell)")
+        elif self._is_lithium_type() and self.cell_count_combo.currentText() == "Enter max voltage":
+            self.display_cutoff.setText(f"{self.voltage_spinbox.value():.2f}")
+        elif self.voltage_combo.currentText():
+            self.display_cutoff.setText(f"{float(self.voltage_combo.currentText()):.2f}")
+
     def toggle_connection(self):
         """Toggle serial connection"""
         if self.controller.is_connected():
@@ -743,11 +842,34 @@ class MainWindow(QMainWindow):
         self.status_label3.setText("Disconnected")
         self.update_ui_state()
     
+    def _cell_count_mode_active(self) -> bool:
+        """Return True when cell-count mode is active.
+
+        Uses the battery type combo rather than widget visibility so it works
+        correctly regardless of which tab is currently shown.
+        """
+        return (self._is_lithium_type() and
+                self.cell_count_combo.currentText() != "Enter max voltage")
+
+    def get_effective_cutoff_voltage(self) -> float:
+        """Return the cutoff voltage to send to the hardware.
+
+        Cell-count mode: per-cell combo value × cell count.
+        Enter max voltage (Lithium): spinbox value used directly.
+        Non-Lithium: combo value used directly.
+        """
+        if self._cell_count_mode_active():
+            per_cell = float(self.voltage_combo.currentText())
+            return round(per_cell * int(self.cell_count_combo.currentText()), 2)
+        if self._is_lithium_type() and self.cell_count_combo.currentText() == "Enter max voltage":
+            return self.voltage_spinbox.value()
+        return float(self.voltage_combo.currentText()) if self.voltage_combo.currentText() else 0.0
+
     def get_battery_max_voltage(self, battery_type: str) -> float:
         """Get maximum voltage for battery type with 10% padding"""
         voltage_map = {
-            "Lithium (3.7v)": 4.2 * 1.1,      # 4.62V
-            "Lithium (3.8v)": 4.2 * 1.1,      # 4.62V
+            "LiPo/Li-Ion (3.7v)": 4.2 * 1.1,      # 4.62V
+            "LiHV (3.8v)": 4.2 * 1.1,      # 4.62V
             "LiFePO4 (3.2v)": 3.6 * 1.1,      # 3.96V
             "NiMH (1.2v)": 1.5 * 1.1,         # 1.65V
             "NiCd (1.2v)": 1.5 * 1.1,         # 1.65V
@@ -762,7 +884,7 @@ class MainWindow(QMainWindow):
         # Get parameters
         params = TestParameters(
             current_ma=self.current_spin.value(),
-            cutoff_voltage=float(self.voltage_combo.currentText()),
+            cutoff_voltage=self.get_effective_cutoff_voltage(),
             capacity_mah=self.capacity_spin.value(),
             sample_interval_sec=1,
             proportional_gain=50,
@@ -794,7 +916,11 @@ class MainWindow(QMainWindow):
         # Update display panel with test settings
         self.display_battery_type.setText(self.battery_type_combo.currentText())
         self.display_current.setText(f"{params.current_ma}")
-        self.display_cutoff.setText(f"{params.cutoff_voltage:.2f}")
+        if self._cell_count_mode_active():
+            per_cell = float(self.voltage_combo.currentText())
+            self.display_cutoff.setText(f"{params.cutoff_voltage:.2f} ({per_cell:.2f} V/cell)")
+        else:
+            self.display_cutoff.setText(f"{params.cutoff_voltage:.2f}")
         self.display_capacity.setText(f"{params.capacity_mah}")
         max_time = params.calculate_max_time_minutes()
         hours = int(max_time // 60)
@@ -811,6 +937,8 @@ class MainWindow(QMainWindow):
         # Set voltage Y-axis to fixed range based on battery type with 10% padding
         battery_type = self.battery_type_combo.currentText()
         max_voltage = self.get_battery_max_voltage(battery_type)
+        if self._cell_count_mode_active():
+            max_voltage *= int(self.cell_count_combo.currentText())
         self.chart_widget.setYRange(0, max_voltage, padding=0)
         
         # Set current Y-axis to fixed range based on set current value with 20% padding
