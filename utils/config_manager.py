@@ -8,7 +8,7 @@ Compatible with Delphi version's INI format.
 import configparser
 import os
 from typing import Optional
-from .models import TestParameters
+from core.models import TestParameters
 
 
 class ConfigManager:

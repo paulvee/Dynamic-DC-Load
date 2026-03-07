@@ -461,13 +461,14 @@ class MainWindow(QMainWindow):
             mins = time_minutes % 60
             self.time_label.setText(f"{hours:02d}:{mins:02d}")
             
-            # Update status bar
-            max_time = time_minutes + 30
-            max_hours = max_time // 60
-            max_mins = max_time % 60
-            self.status_label2.setText(
-                f"Maximum test time: {max_hours} hr : {max_mins} min"
-            )
+            # Update status bar (if it exists)
+            if hasattr(self, 'status_label2'):
+                max_time = time_minutes + 30
+                max_hours = max_time // 60
+                max_mins = max_time % 60
+                self.status_label2.setText(
+                    f"Maximum test time: {max_hours} hr : {max_mins} min"
+                )
     
     def update_ui_state(self):
         """Update UI element states based on current state"""
