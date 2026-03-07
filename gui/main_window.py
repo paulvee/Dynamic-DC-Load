@@ -159,9 +159,9 @@ class MainWindow(QMainWindow):
         graph_tab = self.create_graph_tab()
         self.tab_widget.addTab(graph_tab, "Graph")
         
-        # Control tab
+        # Setup tab
         control_tab = self.create_control_tab()
-        self.tab_widget.addTab(control_tab, "Control")
+        self.tab_widget.addTab(control_tab, "Setup")
         
         main_layout.addWidget(self.tab_widget)
         
@@ -302,6 +302,8 @@ class MainWindow(QMainWindow):
         plot_widget.plotItem.scene().addItem(self.current_viewbox)
         plot_widget.plotItem.getAxis('right').linkToView(self.current_viewbox)
         self.current_viewbox.setXLink(plot_widget.plotItem)
+        self.current_viewbox.invertY(False)  # Ensure Y-axis is not inverted
+        self.current_viewbox.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)  # Enable Y-axis auto-scaling
         plot_widget.setLabel('right', 'Current', units='mA', color='green')
         plot_widget.showAxis('right')
         
@@ -325,9 +327,14 @@ class MainWindow(QMainWindow):
         """Create test parameters input panel"""
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
+        layout.setHorizontalSpacing(5)  # Minimal gap between labels and widgets
+        layout.setColumnStretch(0, 0)  # Don't stretch label column
+        layout.setColumnStretch(1, 1)  # Allow widget column to expand
         
         # Battery type (for reference only, doesn't affect functionality)
-        layout.addWidget(QLabel("Battery type:"), 0, 0)
+        label = QLabel("Battery type:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 0, 0)
         self.battery_type_combo = QComboBox()
         self.battery_type_combo.addItems([
             "Lithium (3.7v)",
@@ -335,6 +342,7 @@ class MainWindow(QMainWindow):
             "LiFePO4 (3.2v)",
             "NiMH (1.2v)",
             "NiCd (1.2v)",
+            "E-Block NiMH (9v)",
             "Alkaline (1.5v)",
             "Other"
         ])
@@ -343,7 +351,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.battery_type_combo, 0, 1)
         
         # Load current (mA)
-        layout.addWidget(QLabel("Load current (mA):"), 1, 0)
+        label = QLabel("Load current (mA):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 1, 0)
         self.current_spin = QSpinBox()
         self.current_spin.setRange(5, 1500)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
@@ -351,7 +361,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.current_spin, 1, 1)
         
         # Cutoff voltage (V)
-        layout.addWidget(QLabel("Cutoff voltage (V):"), 2, 0)
+        label = QLabel("Cutoff voltage (V):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 2, 0)
         self.voltage_combo = QComboBox()
         self.populate_voltage_combo()
         # Reduce dropdown item spacing with custom delegate
@@ -359,7 +371,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.voltage_combo, 2, 1)
         
         # Capacity (mAh)
-        layout.addWidget(QLabel("Rated Capacity (mAh):"), 3, 0)
+        label = QLabel("Rated Capacity (mAh):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 3, 0)
         self.capacity_spin = QSpinBox()
         self.capacity_spin.setRange(5, 10000)
         self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
@@ -367,7 +381,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.capacity_spin, 3, 1)
         
         # Max discharge time (calculated)
-        layout.addWidget(QLabel("Max. discharge time:"), 4, 0)
+        label = QLabel("Max. discharge time:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 4, 0)
         self.time_label = QLabel("--:--")
         layout.addWidget(self.time_label, 4, 1)
         self.update_estimated_time()
@@ -431,7 +447,7 @@ class MainWindow(QMainWindow):
         return layout
     
     def create_graph_tab(self) -> QWidget:
-        """Create the Graph tab with chart"""
+        """Create the Graph tab with chart, readings, and messages"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
@@ -439,27 +455,11 @@ class MainWindow(QMainWindow):
         self.chart_widget = self.create_chart()
         layout.addWidget(self.chart_widget)
         
-        return tab
-    
-    def create_control_tab(self) -> QWidget:
-        """Create the Control tab with parameters and controls"""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        
-        # Top section: Parameters and displays
-        top_layout = QHBoxLayout()
-        
-        # Left side - Test parameters
-        params_group = self.create_parameters_panel()
-        top_layout.addWidget(params_group)
-        
-        # Right side - Current readings display
+        # Current readings display
         display_group = self.create_display_panel()
-        top_layout.addWidget(display_group)
+        layout.addWidget(display_group)
         
-        layout.addLayout(top_layout)
-        
-        # Middle section: Controller message area
+        # Controller message area
         message_group = QGroupBox("Controller Message:")
         message_layout = QVBoxLayout()
         self.message_text = QTextEdit()
@@ -469,9 +469,20 @@ class MainWindow(QMainWindow):
         message_group.setLayout(message_layout)
         layout.addWidget(message_group)
         
-        # Bottom section: Control buttons
+        # Control buttons
         button_layout = self.create_button_panel()
         layout.addLayout(button_layout)
+        
+        return tab
+    
+    def create_control_tab(self) -> QWidget:
+        """Create the Setup tab with parameters"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Test parameters
+        params_group = self.create_parameters_panel()
+        layout.addWidget(params_group)
         
         layout.addStretch()
         
@@ -554,17 +565,18 @@ class MainWindow(QMainWindow):
     def populate_voltage_combo(self):
         """Populate voltage cutoff combo box"""
         voltages = [
+            7.50,
             4.20, 4.15, 4.10, 4.05, 4.00, 3.95, 3.90, 3.85, 3.80, 3.75,
             3.70, 3.65, 3.60, 3.55, 3.50, 3.45, 3.40, 3.35, 3.30, 3.25,
             3.20, 3.15, 3.10, 3.05, 3.00, 2.95, 2.90, 2.85, 2.80, 2.75,
-            2.70, 2.65, 2.60, 2.55, 2.50, 0.00
+            2.70, 2.65, 2.60, 2.55, 2.50, 0.80, 0.00
         ]
         
         for v in voltages:
             self.voltage_combo.addItem(f"{v:.2f}")
         
-        # Set default to 3.00V (index 24)
-        self.voltage_combo.setCurrentIndex(24)
+        # Set default to 3.00V (index 25)
+        self.voltage_combo.setCurrentIndex(25)
     
     def load_settings(self):
         """Load saved settings"""
@@ -706,7 +718,7 @@ class MainWindow(QMainWindow):
             current_ma=self.current_spin.value(),
             cutoff_voltage=float(self.voltage_combo.currentText()),
             capacity_mah=self.capacity_spin.value(),
-            sample_interval_sec=10,
+            sample_interval_sec=1,
             proportional_gain=50,
             beep_enabled=False
         )
@@ -737,6 +749,10 @@ class MainWindow(QMainWindow):
         self.voltage_curve.setData([], [])
         self.current_curve.setData([], [])
         
+        # Enable auto-ranging for both axes
+        self.chart_widget.plotItem.enableAutoRange(axis=pg.ViewBox.YAxis)
+        self.current_viewbox.enableAutoRange(axis=pg.ViewBox.YAxis)
+        
         # Send parameters to controller
         max_time = params.calculate_max_time_minutes()
         success = self.protocol.send_test_parameters(
@@ -752,6 +768,10 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", "Failed to send test parameters")
             self.test_data.state = TestState.ERROR
             return
+        
+        # Log sent parameters for verification
+        if hasattr(self, 'message_text'):
+            self.message_text.append(f"Sent parameters: Current={params.current_ma}mA, Cutoff={params.cutoff_voltage}V, Time={max_time}min")
         
         # Start serial worker thread
         self.test_data.state = TestState.RUNNING
@@ -800,6 +820,10 @@ class MainWindow(QMainWindow):
         from .dialogs import NewTestDialog
         dialog = NewTestDialog(parent=self)
         if dialog.exec():
+            # Send cancel/termination message to controller
+            if self.protocol:
+                self.protocol.cancel_test()
+            
             # Clear displays
             self.test_data.clear()
             self.elapsed_label.setText("--:--:--")
@@ -813,6 +837,12 @@ class MainWindow(QMainWindow):
     
     def on_data_received(self, reading: TestReading):
         """Handle received data from controller"""
+        # Debug: Log received data
+        if hasattr(self, 'message_text'):
+            self.message_text.append(
+                f"RX: Time={reading.elapsed_time} V={reading.voltage:.3f}V I={reading.current_ma:.1f}mA Cap={reading.capacity_mah:.2f}mAh"
+            )
+        
         # Add to test data
         self.test_data.add_point(
             voltage=reading.voltage,
