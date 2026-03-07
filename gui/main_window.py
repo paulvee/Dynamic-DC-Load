@@ -8,9 +8,9 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QComboBox, QSpinBox, QStatusBar, QGroupBox,
     QMessageBox, QFileDialog, QMenuBar, QMenu, QToolBar, QSizePolicy,
-    QTabWidget, QTextEdit
+    QTabWidget, QTextEdit, QStyledItemDelegate
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QAction, QIcon, QColor
 import pyqtgraph as pg
 from datetime import datetime
@@ -19,6 +19,14 @@ from typing import Optional
 from hardware import SerialController, ArduinoProtocol, ConnectionState, TestReading
 from core import TestState, TestParameters, TestData
 from utils import ConfigManager, ExportManager
+
+
+class CompactDelegate(QStyledItemDelegate):
+    """Custom item delegate for compact dropdown spacing"""
+    def sizeHint(self, option, index):
+        size = super().sizeHint(option, index)
+        size.setHeight(22)  # Compact height for items
+        return size
 
 
 class ConnectionIndicator(QWidget):
@@ -247,6 +255,8 @@ class MainWindow(QMainWindow):
         self.port_combo.setMinimumWidth(450)  # Wide enough for port descriptions
         self.port_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.refresh_ports()
+        # Reduce dropdown item spacing with custom delegate
+        self.port_combo.setItemDelegate(CompactDelegate(self.port_combo))
         self.port_combo.currentIndexChanged.connect(self.on_port_changed)
         layout.addWidget(self.port_combo)
         
@@ -315,15 +325,10 @@ class MainWindow(QMainWindow):
         """Create test parameters input panel"""
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
-        layout.setContentsMargins(10, 5, 10, 5)  # Left, Top, Right, Bottom margins
-        layout.setVerticalSpacing(2)  # Very tight vertical spacing
-        layout.setHorizontalSpacing(10)
         
         # Battery type (for reference only, doesn't affect functionality)
         layout.addWidget(QLabel("Battery type:"), 0, 0)
         self.battery_type_combo = QComboBox()
-        self.battery_type_combo.setMaximumHeight(22)  # More compact
-        self.battery_type_combo.setStyleSheet("QComboBox { padding: 2px; }")
         self.battery_type_combo.addItems([
             "Lithium (3.7v)",
             "Lithium (3.8v)", 
@@ -333,13 +338,13 @@ class MainWindow(QMainWindow):
             "Alkaline (1.5v)",
             "Other"
         ])
+        # Reduce dropdown item spacing with custom delegate
+        self.battery_type_combo.setItemDelegate(CompactDelegate(self.battery_type_combo))
         layout.addWidget(self.battery_type_combo, 0, 1)
         
         # Load current (mA)
         layout.addWidget(QLabel("Load current (mA):"), 1, 0)
         self.current_spin = QSpinBox()
-        self.current_spin.setMaximumHeight(22)  # More compact
-        self.current_spin.setStyleSheet("QSpinBox { padding: 2px; }")
         self.current_spin.setRange(5, 1500)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.valueChanged.connect(self.on_current_changed)
@@ -348,16 +353,14 @@ class MainWindow(QMainWindow):
         # Cutoff voltage (V)
         layout.addWidget(QLabel("Cutoff voltage (V):"), 2, 0)
         self.voltage_combo = QComboBox()
-        self.voltage_combo.setMaximumHeight(22)  # More compact
-        self.voltage_combo.setStyleSheet("QComboBox { padding: 2px; }")
         self.populate_voltage_combo()
+        # Reduce dropdown item spacing with custom delegate
+        self.voltage_combo.setItemDelegate(CompactDelegate(self.voltage_combo))
         layout.addWidget(self.voltage_combo, 2, 1)
         
         # Capacity (mAh)
         layout.addWidget(QLabel("Rated Capacity (mAh):"), 3, 0)
         self.capacity_spin = QSpinBox()
-        self.capacity_spin.setMaximumHeight(22)  # More compact
-        self.capacity_spin.setStyleSheet("QSpinBox { padding: 2px; }")
         self.capacity_spin.setRange(5, 10000)
         self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
         self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
