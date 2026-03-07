@@ -7,7 +7,8 @@ PyQt6-based GUI matching the original Delphi application layout.
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QComboBox, QSpinBox, QStatusBar, QGroupBox,
-    QMessageBox, QFileDialog, QMenuBar, QMenu, QToolBar, QSizePolicy
+    QMessageBox, QFileDialog, QMenuBar, QMenu, QToolBar, QSizePolicy,
+    QTabWidget, QTextEdit
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt6.QtGui import QAction, QIcon, QColor
@@ -139,30 +140,22 @@ class MainWindow(QMainWindow):
         # Main layout
         main_layout = QVBoxLayout(central_widget)
         
-        # Connection panel
+        # Connection panel at top
         connection_group = self.create_connection_panel()
         main_layout.addWidget(connection_group)
         
-        # Chart area
-        self.chart_widget = self.create_chart()
-        main_layout.addWidget(self.chart_widget, stretch=1)
+        # Create tab widget
+        self.tab_widget = QTabWidget()
         
-        # Parameters and display panel
-        bottom_layout = QHBoxLayout()
+        # Graph tab
+        graph_tab = self.create_graph_tab()
+        self.tab_widget.addTab(graph_tab, "Graph")
         
-        # Left side - Test parameters
-        params_group = self.create_parameters_panel()
-        bottom_layout.addWidget(params_group)
+        # Control tab
+        control_tab = self.create_control_tab()
+        self.tab_widget.addTab(control_tab, "Control")
         
-        # Right side - Current readings display
-        display_group = self.create_display_panel()
-        bottom_layout.addWidget(display_group)
-        
-        main_layout.addLayout(bottom_layout)
-        
-        # Control buttons
-        button_layout = self.create_button_panel()
-        main_layout.addLayout(button_layout)
+        main_layout.addWidget(self.tab_widget)
         
         # Status bar
         self.create_status_bar()
@@ -323,32 +316,46 @@ class MainWindow(QMainWindow):
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
         
+        # Battery type (for reference only, doesn't affect functionality)
+        layout.addWidget(QLabel("Battery type:"), 0, 0)
+        self.battery_type_combo = QComboBox()
+        self.battery_type_combo.addItems([
+            "Lithium (3.7v)",
+            "Lithium (3.8v)", 
+            "LiFePO4 (3.2v)",
+            "NiMH (1.2v)",
+            "NiCd (1.2v)",
+            "Alkaline (1.5v)",
+            "Other"
+        ])
+        layout.addWidget(self.battery_type_combo, 0, 1)
+        
         # Load current (mA)
-        layout.addWidget(QLabel("Load current (mA):"), 0, 0)
+        layout.addWidget(QLabel("Load current (mA):"), 1, 0)
         self.current_spin = QSpinBox()
         self.current_spin.setRange(5, 1500)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.valueChanged.connect(self.on_current_changed)
-        layout.addWidget(self.current_spin, 0, 1)
+        layout.addWidget(self.current_spin, 1, 1)
         
         # Cutoff voltage (V)
-        layout.addWidget(QLabel("Cutoff voltage (V):"), 1, 0)
+        layout.addWidget(QLabel("Cutoff voltage (V):"), 2, 0)
         self.voltage_combo = QComboBox()
         self.populate_voltage_combo()
-        layout.addWidget(self.voltage_combo, 1, 1)
+        layout.addWidget(self.voltage_combo, 2, 1)
         
         # Capacity (mAh)
-        layout.addWidget(QLabel("Capacity (mAh):"), 2, 0)
+        layout.addWidget(QLabel("Rated Capacity (mAh):"), 3, 0)
         self.capacity_spin = QSpinBox()
         self.capacity_spin.setRange(5, 10000)
         self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
         self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
-        layout.addWidget(self.capacity_spin, 2, 1)
+        layout.addWidget(self.capacity_spin, 3, 1)
         
-        # Estimated time
-        layout.addWidget(QLabel("Estimated time:"), 3, 0)
+        # Max discharge time (calculated)
+        layout.addWidget(QLabel("Max. discharge time:"), 4, 0)
         self.time_label = QLabel("--:--")
-        layout.addWidget(self.time_label, 3, 1)
+        layout.addWidget(self.time_label, 4, 1)
         self.update_estimated_time()
         
         group.setLayout(layout)
@@ -408,6 +415,53 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         
         return layout
+    
+    def create_graph_tab(self) -> QWidget:
+        """Create the Graph tab with chart"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Chart area
+        self.chart_widget = self.create_chart()
+        layout.addWidget(self.chart_widget)
+        
+        return tab
+    
+    def create_control_tab(self) -> QWidget:
+        """Create the Control tab with parameters and controls"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Top section: Parameters and displays
+        top_layout = QHBoxLayout()
+        
+        # Left side - Test parameters
+        params_group = self.create_parameters_panel()
+        top_layout.addWidget(params_group)
+        
+        # Right side - Current readings display
+        display_group = self.create_display_panel()
+        top_layout.addWidget(display_group)
+        
+        layout.addLayout(top_layout)
+        
+        # Middle section: Controller message area
+        message_group = QGroupBox("Controller Message:")
+        message_layout = QVBoxLayout()
+        self.message_text = QTextEdit()
+        self.message_text.setReadOnly(True)
+        self.message_text.setMaximumHeight(100)
+        message_layout.addWidget(self.message_text)
+        message_group.setLayout(message_layout)
+        layout.addWidget(message_group)
+        
+        # Bottom section: Control buttons
+        button_layout = self.create_button_panel()
+        layout.addLayout(button_layout)
+        
+        layout.addStretch()
+        
+        return tab
     
     def create_status_bar(self):
         """Create status bar with multiple panels"""
@@ -769,6 +823,10 @@ class MainWindow(QMainWindow):
     def on_message_received(self, message: str):
         """Handle status message from controller"""
         self.status_label3.setText(message)
+        
+        # Also append to message text box in Control tab
+        if hasattr(self, 'message_text'):
+            self.message_text.append(message)
         
         # Check for test completion
         if any(keyword in message for keyword in ['Finished', 'Exceeded', 'Error', 'Cancelled', 'Cutoff']):
