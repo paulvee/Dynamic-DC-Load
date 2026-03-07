@@ -288,7 +288,7 @@ class MainWindow(QMainWindow):
         
         # Set labels
         plot_widget.setLabel('left', 'Voltage', units='V', color='blue')
-        plot_widget.setLabel('bottom', 'Time', units='minutes')
+        plot_widget.setLabel('bottom', 'Time', units='seconds')
         plot_widget.setTitle(f"{self.test_data.parameters.capacity_mah} mAh Lithium Battery Discharge Curve")
         
         # Create voltage plot (left axis, blue)
@@ -749,7 +749,10 @@ class MainWindow(QMainWindow):
         self.voltage_curve.setData([], [])
         self.current_curve.setData([], [])
         
-        # Enable auto-ranging for both axes
+        # Initialize X-axis to show 10 minutes (600 seconds)
+        self.chart_widget.setXRange(0, 600, padding=0)
+        
+        # Enable auto-ranging for Y-axes only
         self.chart_widget.plotItem.enableAutoRange(axis=pg.ViewBox.YAxis)
         self.current_viewbox.enableAutoRange(axis=pg.ViewBox.YAxis)
         
@@ -863,6 +866,10 @@ class MainWindow(QMainWindow):
         
         self.voltage_curve.setData(times, voltages)
         self.current_curve.setData(times, currents)
+        
+        # Expand X-axis if data exceeds 10 minutes (600 seconds)
+        if times and times[-1] > 600:
+            self.chart_widget.setXRange(0, times[-1], padding=0.02)
     
     def on_message_received(self, message: str):
         """Handle status message from controller"""

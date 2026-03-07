@@ -143,12 +143,12 @@ class TestData:
         Get voltage data series for plotting.
         
         Returns:
-            (time_minutes, voltage_values)
+            (time_seconds, voltage_values)
         """
         if not self.data_points:
             return [], []
         
-        times = [p.elapsed_minutes for p in self.data_points]
+        times = [p.elapsed_seconds for p in self.data_points]
         voltages = [p.voltage for p in self.data_points]
         return times, voltages
     
@@ -157,12 +157,12 @@ class TestData:
         Get current data series for plotting.
         
         Returns:
-            (time_minutes, current_values)
+            (time_seconds, current_values)
         """
         if not self.data_points:
             return [], []
         
-        times = [p.elapsed_minutes for p in self.data_points]
+        times = [p.elapsed_seconds for p in self.data_points]
         currents = [p.current_ma for p in self.data_points]
         return times, currents
     
