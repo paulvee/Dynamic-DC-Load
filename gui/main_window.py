@@ -711,6 +711,20 @@ class MainWindow(QMainWindow):
         self.status_label3.setText("Disconnected")
         self.update_ui_state()
     
+    def get_battery_max_voltage(self, battery_type: str) -> float:
+        """Get maximum voltage for battery type with 10% padding"""
+        voltage_map = {
+            "Lithium (3.7v)": 4.2 * 1.1,      # 4.62V
+            "Lithium (3.8v)": 4.2 * 1.1,      # 4.62V
+            "LiFePO4 (3.2v)": 3.6 * 1.1,      # 3.96V
+            "NiMH (1.2v)": 1.5 * 1.1,         # 1.65V
+            "NiCd (1.2v)": 1.5 * 1.1,         # 1.65V
+            "E-Block NiMH (9v)": 10.0 * 1.1,  # 11.0V
+            "Alkaline (1.5v)": 1.6 * 1.1,     # 1.76V
+            "Other": 5.0                       # Default 5V
+        }
+        return voltage_map.get(battery_type, 5.0)
+    
     def start_test(self):
         """Start battery discharge test"""
         # Get parameters
@@ -752,10 +766,12 @@ class MainWindow(QMainWindow):
         # Initialize X-axis to show 10 minutes (600 seconds)
         self.chart_widget.setXRange(0, 600, padding=0)
         
-        # Enable auto-ranging for voltage Y-axis only
-        self.chart_widget.plotItem.enableAutoRange(axis=pg.ViewBox.YAxis)
+        # Set voltage Y-axis to fixed range based on battery type with 10% padding
+        battery_type = self.battery_type_combo.currentText()
+        max_voltage = self.get_battery_max_voltage(battery_type)
+        self.chart_widget.setYRange(0, max_voltage, padding=0)
         
-        # Set current Y-axis to display set current value with 20% padding
+        # Set current Y-axis to fixed range based on set current value with 20% padding
         max_current = params.current_ma * 1.2
         self.current_viewbox.setYRange(0, max_current, padding=0)
         
