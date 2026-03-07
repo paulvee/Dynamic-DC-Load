@@ -251,7 +251,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("COM Port:"))
         
         self.port_combo = QComboBox()
-        self.port_combo.setMinimumWidth(200)
+        self.port_combo.setMinimumWidth(450)  # Wide enough for port descriptions
+        self.port_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.refresh_ports()
         self.port_combo.currentIndexChanged.connect(self.on_port_changed)
         layout.addWidget(self.port_combo)
