@@ -315,13 +315,15 @@ class MainWindow(QMainWindow):
         """Create test parameters input panel"""
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
-        layout.setVerticalSpacing(5)  # Reduce vertical spacing between rows
+        layout.setContentsMargins(10, 5, 10, 5)  # Left, Top, Right, Bottom margins
+        layout.setVerticalSpacing(2)  # Very tight vertical spacing
         layout.setHorizontalSpacing(10)
         
         # Battery type (for reference only, doesn't affect functionality)
         layout.addWidget(QLabel("Battery type:"), 0, 0)
         self.battery_type_combo = QComboBox()
-        self.battery_type_combo.setMaximumHeight(25)  # Compact height
+        self.battery_type_combo.setMaximumHeight(22)  # More compact
+        self.battery_type_combo.setStyleSheet("QComboBox { padding: 2px; }")
         self.battery_type_combo.addItems([
             "Lithium (3.7v)",
             "Lithium (3.8v)", 
@@ -336,7 +338,8 @@ class MainWindow(QMainWindow):
         # Load current (mA)
         layout.addWidget(QLabel("Load current (mA):"), 1, 0)
         self.current_spin = QSpinBox()
-        self.current_spin.setMaximumHeight(25)  # Compact height
+        self.current_spin.setMaximumHeight(22)  # More compact
+        self.current_spin.setStyleSheet("QSpinBox { padding: 2px; }")
         self.current_spin.setRange(5, 1500)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.valueChanged.connect(self.on_current_changed)
@@ -345,14 +348,16 @@ class MainWindow(QMainWindow):
         # Cutoff voltage (V)
         layout.addWidget(QLabel("Cutoff voltage (V):"), 2, 0)
         self.voltage_combo = QComboBox()
-        self.voltage_combo.setMaximumHeight(25)  # Compact height
+        self.voltage_combo.setMaximumHeight(22)  # More compact
+        self.voltage_combo.setStyleSheet("QComboBox { padding: 2px; }")
         self.populate_voltage_combo()
         layout.addWidget(self.voltage_combo, 2, 1)
         
         # Capacity (mAh)
         layout.addWidget(QLabel("Rated Capacity (mAh):"), 3, 0)
         self.capacity_spin = QSpinBox()
-        self.capacity_spin.setMaximumHeight(25)  # Compact height
+        self.capacity_spin.setMaximumHeight(22)  # More compact
+        self.capacity_spin.setStyleSheet("QSpinBox { padding: 2px; }")
         self.capacity_spin.setRange(5, 10000)
         self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
         self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
