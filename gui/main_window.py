@@ -752,9 +752,12 @@ class MainWindow(QMainWindow):
         # Initialize X-axis to show 10 minutes (600 seconds)
         self.chart_widget.setXRange(0, 600, padding=0)
         
-        # Enable auto-ranging for Y-axes only
+        # Enable auto-ranging for voltage Y-axis only
         self.chart_widget.plotItem.enableAutoRange(axis=pg.ViewBox.YAxis)
-        self.current_viewbox.enableAutoRange(axis=pg.ViewBox.YAxis)
+        
+        # Set current Y-axis to display set current value with 20% padding
+        max_current = params.current_ma * 1.2
+        self.current_viewbox.setYRange(0, max_current, padding=0)
         
         # Send parameters to controller
         max_time = params.calculate_max_time_minutes()
