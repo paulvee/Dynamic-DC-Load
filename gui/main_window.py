@@ -245,9 +245,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("COM Port:"))
         
         self.port_combo = QComboBox()
+        self.port_combo.setMinimumWidth(200)
         self.refresh_ports()
         self.port_combo.currentIndexChanged.connect(self.on_port_changed)
         layout.addWidget(self.port_combo)
+        
+        # Refresh button
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.refresh_ports)
+        refresh_btn.setToolTip("Refresh COM port list")
+        layout.addWidget(refresh_btn)
         
         self.connect_btn = QPushButton("Connect")
         self.connect_btn.clicked.connect(self.toggle_connection)
@@ -413,14 +420,26 @@ class MainWindow(QMainWindow):
         self.port_combo.clear()
         ports = SerialController.get_available_ports()
         
-        for port in ports:
-            info = SerialController.get_port_info(port)
-            self.port_combo.addItem(f"{port}", port)
-        
-        # Restore last used port
-        last_port_idx = self.config.get_last_port_index()
-        if last_port_idx < self.port_combo.count():
-            self.port_combo.setCurrentIndex(last_port_idx)
+        if not ports:
+            # No ports found - add placeholder
+            self.port_combo.addItem("No COM ports found", None)
+            self.statusBar().showMessage("No serial ports detected. Connect Arduino/ESP32 and click Refresh.", 5000)
+        else:
+            for port in ports:
+                info = SerialController.get_port_info(port)
+                # Show port and description if available
+                if info:
+                    display_text = info
+                else:
+                    display_text = port
+                self.port_combo.addItem(display_text, port)
+            
+            # Restore last used port
+            last_port_idx = self.config.get_last_port_index()
+            if last_port_idx < self.port_combo.count():
+                self.port_combo.setCurrentIndex(last_port_idx)
+            
+            self.statusBar().showMessage(f"Found {len(ports)} serial port(s)", 3000)
     
     def populate_voltage_combo(self):
         """Populate voltage cutoff combo box"""
@@ -474,8 +493,9 @@ class MainWindow(QMainWindow):
         """Update UI element states based on current state"""
         is_connected = self.controller.is_connected()
         is_running = self.test_data.state == TestState.RUNNING
+        has_valid_port = self.port_combo.count() > 0 and self.port_combo.currentData() is not None
         
-        self.connect_btn.setEnabled(self.port_combo.count() > 0)
+        self.connect_btn.setEnabled(has_valid_port and not is_connected)
         self.start_btn.setEnabled(is_connected and not is_running)
         self.cancel_btn.setEnabled(is_running)
         self.new_test_btn.setEnabled(is_connected and not is_running)
