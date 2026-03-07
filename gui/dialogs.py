@@ -43,7 +43,8 @@ class AboutDialog(QDialog):
             "© 2026<br><br>"
             "<b>Original Delphi Application</b><br>"
             "© 2019 vwlowen.co.uk<br><br>"
-            "<i>In memory of the original developer</i><br><br>"
+            "<i>In memory of the original developer</i><br>"
+            "modifications made by paulv<br><br>"
             "For use with Arduino/ESP32 Dynamic Load Controller"
         )
         credits = QLabel(credits_text)
