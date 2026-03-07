@@ -889,7 +889,7 @@ class MainWindow(QMainWindow):
             return
         
         success, error = ExportManager.export_chart_image(
-            self.chart, self.test_data, self.test_params, self
+            self.chart_widget, self.test_data, self.test_params, self
         )
         
         if success:
@@ -919,7 +919,7 @@ class MainWindow(QMainWindow):
             return
         
         success, error = ExportManager.print_chart(
-            self.chart, self.test_data, self.test_params, self
+            self.chart_widget, self.test_data, self.test_params, self
         )
         
         if success:
@@ -929,7 +929,7 @@ class MainWindow(QMainWindow):
     
     def copy_chart(self):
         """Copy chart to clipboard"""
-        success, error = ExportManager.copy_chart_to_clipboard(self.chart, self)
+        success, error = ExportManager.copy_chart_to_clipboard(self.chart_widget, self)
         
         if success:
             self.statusBar().showMessage("Chart copied to clipboard", 3000)
