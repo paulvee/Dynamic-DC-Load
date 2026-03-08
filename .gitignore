@@ -58,7 +58,8 @@ dmypy.json
 *.manifest
 *.spec
 
-# User Configuration - Keep config.ini tracked but ignore backups
+# User Configuration - Ignore user-specific settings, track template only
+config.ini
 config.ini.bak
 *.ini.bak
 
