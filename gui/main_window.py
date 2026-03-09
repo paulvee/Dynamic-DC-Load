@@ -1085,57 +1085,35 @@ class MainWindow(QMainWindow):
     # Menu actions
     def save_chart(self):
         """Save chart as image"""
-        if self.test_state == TestState.IDLE or not self.test_data.data_points:
-            QMessageBox.warning(self, "No Data", "No test data to save. Run a test first.")
-            return
-        
-        success, error = ExportManager.export_chart_image(
-            self.chart_widget, self.test_data, self.test_params, self
+        QMessageBox.information(
+            self,
+            "Not Implemented",
+            "Save Chart feature is not yet implemented.\n\nThis feature will allow you to save the discharge chart as an image file."
         )
-        
-        if success:
-            QMessageBox.information(self, "Save Chart", "Chart saved successfully!")
-        elif error:
-            QMessageBox.critical(self, "Export Error", error)
     
     def export_csv(self):
         """Export data as CSV"""
-        if self.test_state == TestState.IDLE or not self.test_data.data_points:
-            QMessageBox.warning(self, "No Data", "No test data to export. Run a test first.")
-            return
-        
-        success, error = ExportManager.export_to_csv(
-            self.test_data, self.test_params, self
+        QMessageBox.information(
+            self,
+            "Not Implemented",
+            "Export CSV feature is not yet implemented.\n\nThis feature will allow you to export test data to a CSV file for analysis."
         )
-        
-        if success:
-            QMessageBox.information(self, "Export CSV", "Data exported successfully!")
-        elif error:
-            QMessageBox.critical(self, "Export Error", error)
     
     def print_chart(self):
         """Print chart"""
-        if self.test_state == TestState.IDLE or not self.test_data.data_points:
-            QMessageBox.warning(self, "No Data", "No test data to print. Run a test first.")
-            return
-        
-        success, error = ExportManager.print_chart(
-            self.chart_widget, self.test_data, self.test_params, self
+        QMessageBox.information(
+            self,
+            "Not Implemented",
+            "Print Chart feature is not yet implemented.\n\nThis feature will allow you to print the discharge chart."
         )
-        
-        if success:
-            QMessageBox.information(self, "Print", "Chart sent to printer successfully!")
-        elif error:
-            QMessageBox.critical(self, "Print Error", error)
     
     def copy_chart(self):
         """Copy chart to clipboard"""
-        success, error = ExportManager.copy_chart_to_clipboard(self.chart_widget, self)
-        
-        if success:
-            self.statusBar().showMessage("Chart copied to clipboard", 3000)
-        elif error:
-            QMessageBox.critical(self, "Copy Error", error)
+        QMessageBox.information(
+            self,
+            "Not Implemented",
+            "Copy Chart feature is not yet implemented.\n\nThis feature will allow you to copy the chart to the clipboard."
+        )
     
     def show_help(self):
         """Show help dialog"""

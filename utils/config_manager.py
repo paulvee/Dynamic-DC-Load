@@ -198,6 +198,20 @@ class ConfigManager:
         y = self.get_int('WindowY', 100)
         width = self.get_int('WindowWidth', 1200)
         height = self.get_int('WindowHeight', 800)
+        
+        # Validate window position - ensure it's visible on screen
+        # Minimum y position to ensure menu bar is accessible
+        if y < 0:
+            y = 0
+        if x < 0:
+            x = 0
+            
+        # Ensure reasonable minimum size
+        if width < 800:
+            width = 800
+        if height < 600:
+            height = 600
+            
         return x, y, width, height
     
     def save_window_geometry(self, x: int, y: int, width: int, height: int):
