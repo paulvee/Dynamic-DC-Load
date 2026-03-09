@@ -68,8 +68,10 @@ class ExportManager:
                 writer.writerow(['Discharge Current (mA):', test_params.current_ma])
                 writer.writerow(['Cutoff Voltage (V):', 
                                str(test_params.cutoff_voltage).replace('.', decimal_sep)])
-                writer.writerow(['Max Capacity (mAh):', test_params.max_capacity_mah])
-                writer.writerow(['Time Limit (min):', test_params.time_limit_minutes])
+                writer.writerow(['Rated Capacity (mAh):', test_params.capacity_mah])
+                writer.writerow(['Max Test Time (min):', test_params.calculate_max_time_minutes()])
+                if test_params.battery_weight > 0:
+                    writer.writerow(['Battery Weight (g):', test_params.battery_weight])
                 writer.writerow([])
                 
                 # Column headers
