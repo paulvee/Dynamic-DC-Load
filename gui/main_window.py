@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QComboBox, QSpinBox, QDoubleSpinBox, QStackedWidget,
     QStatusBar, QGroupBox, QMessageBox, QFileDialog, QMenuBar, QMenu,
-    QToolBar, QSizePolicy, QTabWidget, QTextEdit, QStyledItemDelegate
+    QToolBar, QSizePolicy, QTabWidget, QTextEdit, QStyledItemDelegate, QApplication, QCheckBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QAction, QIcon, QColor
@@ -323,8 +323,8 @@ class MainWindow(QMainWindow):
         
         return plot_widget
     
-    def create_parameters_panel(self) -> QGroupBox:
-        """Create test parameters input panel"""
+    def create_test_parameters_panel(self) -> QGroupBox:
+        """Create test parameters input panel (left column)"""
         group = QGroupBox("Test Parameters")
         layout = QGridLayout()
         layout.setHorizontalSpacing(5)  # Minimal gap between labels and widgets
@@ -368,7 +368,8 @@ class MainWindow(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 2, 0)
         self.current_spin = QSpinBox()
-        self.current_spin.setRange(5, 1500)
+        max_current = self.config.get_max_current()
+        self.current_spin.setRange(5, max_current)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.valueChanged.connect(self.on_current_changed)
         layout.addWidget(self.current_spin, 2, 1)
@@ -429,6 +430,48 @@ class MainWindow(QMainWindow):
 
         # Set initial visibility based on default battery type
         self.on_battery_type_changed()
+
+        group.setLayout(layout)
+        return group
+    
+    def create_system_settings_panel(self) -> QGroupBox:
+        """Create system settings panel (right column)"""
+        group = QGroupBox("System Settings")
+        layout = QGridLayout()
+        layout.setHorizontalSpacing(5)
+        layout.setVerticalSpacing(4)
+        layout.setColumnStretch(0, 0)  # Don't stretch label column
+        layout.setColumnStretch(1, 1)  # Allow widget column to expand
+
+        # Maximum discharge current (hardware limit)
+        label = QLabel("Max Discharge Current (mA):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 0, 0)
+        self.max_current_spin = QSpinBox()
+        self.max_current_spin.setRange(100, 5000)
+        self.max_current_spin.setSingleStep(100)
+        self.max_current_spin.setValue(self.config.get_max_current())
+        self.max_current_spin.setToolTip(
+            "Maximum current that can be sent to the controller.\n"
+            "This limits the 'Load current' field for safety."
+        )
+        self.max_current_spin.valueChanged.connect(self.on_max_current_changed)
+        layout.addWidget(self.max_current_spin, 0, 1)
+
+        # Beep on completion checkbox
+        label = QLabel("Beep on Completion:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 1, 0)
+        self.beep_enabled_checkbox = QCheckBox()
+        self.beep_enabled_checkbox.setChecked(self.config.get_beep_enabled())
+        self.beep_enabled_checkbox.setToolTip(
+            "Play a beep sound when the battery test completes."
+        )
+        self.beep_enabled_checkbox.stateChanged.connect(self.on_beep_enabled_changed)
+        layout.addWidget(self.beep_enabled_checkbox, 1, 1)
+
+        # Push all rows to the top — absorbs any extra vertical space
+        layout.setRowStretch(2, 1)
 
         group.setLayout(layout)
         return group
@@ -552,13 +595,29 @@ class MainWindow(QMainWindow):
     def create_control_tab(self) -> QWidget:
         """Create the Setup tab with parameters"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+        main_layout = QVBoxLayout(tab)
         
-        # Test parameters
-        params_group = self.create_parameters_panel()
-        layout.addWidget(params_group)
+        # Horizontal layout for two-column design
+        columns_layout = QHBoxLayout()
+        columns_layout.addStretch()  # Center the content
         
-        layout.addStretch()
+        # Left column: Test parameters
+        test_params_group = self.create_test_parameters_panel()
+        test_params_group.setMaximumWidth(1000)  # Limit width
+        columns_layout.addWidget(test_params_group)
+        
+        # Add spacing between columns
+        columns_layout.addSpacing(20)
+        
+        # Right column: System settings
+        system_settings_group = self.create_system_settings_panel()
+        system_settings_group.setMaximumWidth(1000)  # Limit width
+        columns_layout.addWidget(system_settings_group)
+        
+        columns_layout.addStretch()  # Center the content
+        
+        main_layout.addLayout(columns_layout)
+        main_layout.addStretch()
         
         return tab
     
@@ -745,6 +804,28 @@ class MainWindow(QMainWindow):
         else:
             self.current_spin.setSingleStep(25)
     
+    def on_max_current_changed(self):
+        """Handle max current limit change"""
+        max_current = self.max_current_spin.value()
+        
+        # Save to config
+        self.config.set_max_current(max_current)
+        
+        # Update the Load current spinbox range
+        current_value = self.current_spin.value()
+        self.current_spin.setRange(5, max_current)
+        
+        # If current value exceeds new max, clamp it
+        if current_value > max_current:
+            self.current_spin.setValue(max_current)
+    
+    def on_beep_enabled_changed(self):
+        """Handle beep enabled checkbox change"""
+        beep_enabled = self.beep_enabled_checkbox.isChecked()
+        
+        # Save to config
+        self.config.set_beep_enabled(beep_enabled)
+    
     def on_capacity_changed(self):
         """Handle capacity value change"""
         self.update_estimated_time()
@@ -887,8 +968,19 @@ class MainWindow(QMainWindow):
             cutoff_voltage=self.get_effective_cutoff_voltage(),
             capacity_mah=self.capacity_spin.value(),
             sample_interval_sec=1,
-            beep_enabled=False
+            beep_enabled=self.beep_enabled_checkbox.isChecked()
         )
+        
+        # Validate against maximum current limit
+        max_current = self.config.get_max_current()
+        if params.current_ma > max_current:
+            QMessageBox.warning(
+                self,
+                "Current Limit Exceeded",
+                f"The requested current ({params.current_ma} mA) exceeds the maximum limit ({max_current} mA).\n\n"
+                f"Please reduce the current or adjust the limit in File → Setup."
+            )
+            return
         
         # Validate
         is_valid, error = params.validate()
@@ -998,6 +1090,11 @@ class MainWindow(QMainWindow):
         self.test_data.state = TestState.COMPLETED
         self.test_data.completion_message = reason
         self.status_label1.setText(f"Test completed: {reason}")
+        
+        # Beep to alert user of test completion (if enabled)
+        if self.test_data.parameters.beep_enabled:
+            QApplication.beep()
+        
         self.update_ui_state()
     
     def new_test(self):

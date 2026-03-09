@@ -54,6 +54,7 @@ class ConfigManager:
             'Port': '0',                      # COM port index
             'Reset': 'False',                 # Reset controller on new test
             'Beep': 'False',                  # Beep notification
+            'MaxCurrent': '2500',             # Maximum discharge current (mA)
             'LastCurrent': '50',              # Last used current setting
             'LastCapacity': '100',            # Last used capacity
             'WindowX': '100',                 # Window position
@@ -217,4 +218,22 @@ class ConfigManager:
         self.set_value('WindowY', y)
         self.set_value('WindowWidth', width)
         self.set_value('WindowHeight', height)
+        self.save()
+    
+    def get_max_current(self) -> int:
+        """Get maximum discharge current limit (mA)"""
+        return self.get_int('MaxCurrent', 2500)
+    
+    def set_max_current(self, current_ma: int):
+        """Save maximum discharge current limit (mA)"""
+        self.set_value('MaxCurrent', current_ma)
+        self.save()
+    
+    def get_beep_enabled(self) -> bool:
+        """Get beep notification setting"""
+        return self.get_bool('Beep', False)
+    
+    def set_beep_enabled(self, enabled: bool):
+        """Save beep notification setting"""
+        self.set_value('Beep', enabled)
         self.save()
