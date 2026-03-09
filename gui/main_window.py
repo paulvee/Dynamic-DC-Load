@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
         # File menu
         file_menu = menubar.addMenu("&File")
         
-        new_action = QAction("&New Test...", self)
+        new_action = QAction("&New Test", self)
         new_action.setShortcut("Ctrl+N")
         new_action.triggered.connect(self.new_test)
         file_menu.addAction(new_action)
