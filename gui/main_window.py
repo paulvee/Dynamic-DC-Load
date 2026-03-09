@@ -852,6 +852,10 @@ class MainWindow(QMainWindow):
     
     def update_ui_state(self):
         """Update UI element states based on current state"""
+        # Guard: Don't update if UI not fully initialized yet
+        if not hasattr(self, 'connect_btn'):
+            return
+        
         is_connected = self.controller.is_connected()
         is_running = self.test_data.state == TestState.RUNNING
         has_valid_port = self.port_combo.count() > 0 and self.port_combo.currentData() is not None
