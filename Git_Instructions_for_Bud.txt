@@ -1,0 +1,75 @@
+==================================================================
+GIT INSTRUCTIONS - How to Push Your Changes to GitHub
+==================================================================
+
+Hi Bud,
+
+Here are the steps to push your changes to the Battery Tester repository:
+
+
+METHOD 1: Step-by-Step Commands
+---------------------------------
+
+1. Open PowerShell and navigate to the project folder:
+
+cd "C:\Users\[YourUserName]\Documents\Hobby\Battery Tester\Delphi\DelphiStuff\DelphiBatteryTester\battery_tester_python"
+
+
+2. Check what files you changed:
+
+git status
+
+
+3. Add all your changes:
+
+git add -A
+
+
+4. Commit with a description of what you did:
+
+git commit -m "Brief description of your changes"
+
+
+5. Pull any updates from the repository first (to avoid conflicts):
+
+git pull origin main
+
+
+6. Push your changes to GitHub:
+
+git push origin main
+
+
+7. Let Paul know that you've pushed your changes so he can pull them.
+
+
+METHOD 2: All-in-One Command
+-----------------------------
+
+If you prefer, you can run everything in one line (replace [YourUserName] with your Windows username):
+
+cd "C:\Users\[YourUserName]\Documents\Hobby\Battery Tester\Delphi\DelphiStuff\DelphiBatteryTester\battery_tester_python"; git add -A; git commit -m "Description of changes"; git pull origin main; git push origin main
+
+
+TROUBLESHOOTING
+---------------
+
+If you get a merge conflict message after "git pull":
+- Let Paul know immediately
+- Don't try to force push
+- Paul or Claude can help resolve the conflict
+
+
+If you need to see recent commits:
+
+git log --oneline -10
+
+
+If you're not sure if you have uncommitted changes:
+
+git status
+
+
+==================================================================
+Questions? Contact Paul or ask Claude in the chat!
+==================================================================

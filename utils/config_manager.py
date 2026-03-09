@@ -214,6 +214,17 @@ class ConfigManager:
     
     def save_window_geometry(self, x: int, y: int, width: int, height: int):
         """Save window position and size"""
+        # Validate position before saving
+        if y < 0:
+            y = 0
+        if x < 0:
+            x = 0
+        # Ensure reasonable minimum size
+        if width < 800:
+            width = 800
+        if height < 600:
+            height = 600
+            
         self.set_value('WindowX', x)
         self.set_value('WindowY', y)
         self.set_value('WindowWidth', width)
