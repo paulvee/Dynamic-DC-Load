@@ -212,7 +212,6 @@ class ArduinoProtocol:
         cutoff_voltage: float,
         time_limit_minutes: int,
         sample_interval_sec: int,
-        kp: int = 50,
         loop_delay: int = 0,
         tolerance: int = 1,
         beep_enabled: bool = False
@@ -225,11 +224,10 @@ class ArduinoProtocol:
         2. cutoff_voltage  
         3. time_limit (minutes)
         4. sample_interval (seconds)
-        5. kP (proportional gain)
-        6. loop_delay (offset - not used in v3.04)
-        7. tolerance (not used in v3.04)
-        8. beep (not used in v3.04)
-        9. cancel flag (0 = start test)
+        5. loop_delay (offset - not used in v3.04)
+        6. tolerance (not used in v3.04)
+        7. beep (not used in v3.04)
+        8. cancel flag (0 = start test)
         
         Returns True if successful, False otherwise.
         """
@@ -244,9 +242,6 @@ class ArduinoProtocol:
             time.sleep(0.15)
             
             self.serial.write(f"{sample_interval_sec}\n".encode())
-            time.sleep(0.15)
-            
-            self.serial.write(f"{kp}\n".encode())
             time.sleep(0.15)
             
             self.serial.write(f"{loop_delay}\n".encode())

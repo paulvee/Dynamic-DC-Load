@@ -26,7 +26,6 @@ class TestParameters:
     cutoff_voltage: float = 3.0  # Minimum voltage to end test
     capacity_mah: int = 100  # Rated battery capacity
     sample_interval_sec: int = 10  # Data sample interval
-    proportional_gain: int = 50  # PID kP value
     loop_delay_ms: int = 0  # Loop delay (not used in v3.04)
     tolerance_percent: int = 1  # Current tolerance (not used in v3.04)
     beep_enabled: bool = False  # Beep on completion

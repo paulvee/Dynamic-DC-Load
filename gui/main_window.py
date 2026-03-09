@@ -887,7 +887,6 @@ class MainWindow(QMainWindow):
             cutoff_voltage=self.get_effective_cutoff_voltage(),
             capacity_mah=self.capacity_spin.value(),
             sample_interval_sec=1,
-            proportional_gain=50,
             beep_enabled=False
         )
         
@@ -952,7 +951,6 @@ class MainWindow(QMainWindow):
             cutoff_voltage=params.cutoff_voltage,
             time_limit_minutes=max_time,
             sample_interval_sec=params.sample_interval_sec,
-            kp=params.proportional_gain,
             beep_enabled=params.beep_enabled
         )
         

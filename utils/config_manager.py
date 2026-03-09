@@ -49,7 +49,6 @@ class ConfigManager:
             'Cutoff': '5',                    # Cutoff voltage index (matches Delphi combo box)
             'TimeLimit': '180',               # Capacity in mAh (not time!)
             'SampleTime': '10',               # Sample interval in seconds
-            'kP': '50',                       # Proportional gain
             'LoopDelay': '0',                 # Loop delay (not used)
             'Tolerance': '1',                 # Current tolerance (not used)
             'Port': '0',                      # COM port index
@@ -89,7 +88,6 @@ class ConfigManager:
             cutoff_voltage=self.get_cutoff_voltage(),
             capacity_mah=self.get_int('TimeLimit', 100),
             sample_interval_sec=self.get_int('SampleTime', 10),
-            proportional_gain=self.get_int('kP', 50),
             loop_delay_ms=self.get_int('LoopDelay', 0),
             tolerance_percent=self.get_int('Tolerance', 1),
             beep_enabled=self.get_bool('Beep', False)
@@ -100,7 +98,6 @@ class ConfigManager:
         self.set_value('LastCurrent', params.current_ma)
         self.set_value('TimeLimit', params.capacity_mah)
         self.set_value('SampleTime', params.sample_interval_sec)
-        self.set_value('kP', params.proportional_gain)
         self.set_value('LoopDelay', params.loop_delay_ms)
         self.set_value('Tolerance', params.tolerance_percent)
         self.set_value('Beep', params.beep_enabled)
