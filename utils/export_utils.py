@@ -49,14 +49,19 @@ class ExportManager:
             return False, None  # User cancelled
         
         try:
-            # Determine decimal separator based on locale
+            # Initialize locale to system settings and determine separators
             try:
+                locale.setlocale(locale.LC_ALL, '')  # Use system locale
                 decimal_sep = locale.localeconv()['decimal_point']
             except:
-                decimal_sep = '.'
+                decimal_sep = '.'  # Fallback to dot if locale detection fails
+            
+            # Use semicolon delimiter for European locales (where comma is decimal)
+            # This prevents Excel from confusing field separators with decimal separators
+            csv_delimiter = ';' if decimal_sep == ',' else ','
             
             with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
+                writer = csv.writer(f, delimiter=csv_delimiter)
                 
                 # Header
                 writer.writerow(['Battery Tester Data Export'])
