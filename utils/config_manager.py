@@ -296,8 +296,17 @@ class ConfigManager:
     def get_chart_title(self) -> str:
         """Get chart title for saved images"""
         return self.get_string('ChartTitle', '')
-    
+
     def set_chart_title(self, title: str):
         """Save chart title for saved images"""
         self.set_value('ChartTitle', title)
+        self.save()
+
+    def get_dark_chart(self) -> bool:
+        """Get dark chart background setting"""
+        return self.get_bool('DarkChart', False)
+
+    def set_dark_chart(self, enabled: bool):
+        """Save dark chart background setting"""
+        self.set_value('DarkChart', enabled)
         self.save()

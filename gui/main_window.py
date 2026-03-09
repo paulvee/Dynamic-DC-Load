@@ -537,8 +537,23 @@ class MainWindow(QMainWindow):
         self.chart_title_input.textChanged.connect(self.on_chart_title_changed)
         layout.addWidget(self.chart_title_input, 2, 1)
 
+        # Dark chart background checkbox
+        label = QLabel("Dark Chart Background:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 3, 0)
+        self.dark_chart_checkbox = QCheckBox()
+        self.dark_chart_checkbox.setChecked(self.config.get_dark_chart())
+        self.dark_chart_checkbox.setToolTip(
+            "Use a dark background for the discharge chart."
+        )
+        self.dark_chart_checkbox.stateChanged.connect(self.on_dark_chart_changed)
+        layout.addWidget(self.dark_chart_checkbox, 3, 1)
+
+        # Add spacing after dark chart checkbox
+        layout.setRowMinimumHeight(3, 50)
+
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(3, 1)
+        layout.setRowStretch(4, 1)
 
         group.setLayout(layout)
         return group
@@ -827,7 +842,10 @@ class MainWindow(QMainWindow):
         self.battery_weight_input.setValue(params.battery_weight)
         self.update_battery_weight_style()
         self.chart_title_input.setText(params.chart_title)
-        
+
+        # Apply saved chart theme
+        self.apply_chart_theme(self.config.get_dark_chart())
+
         self.update_estimated_time()
     
     def update_estimated_time(self):
@@ -860,7 +878,7 @@ class MainWindow(QMainWindow):
         is_running = self.test_data.state == TestState.RUNNING
         has_valid_port = self.port_combo.count() > 0 and self.port_combo.currentData() is not None
         
-        self.connect_btn.setEnabled(has_valid_port and not is_connected)
+        self.connect_btn.setEnabled(is_connected and not is_running or has_valid_port and not is_connected)
         self.refresh_btn.setEnabled(not is_connected)  # Disable refresh when connected
         self.start_btn.setEnabled(is_connected and not is_running)
         self.cancel_btn.setEnabled(is_running)
@@ -950,10 +968,33 @@ class MainWindow(QMainWindow):
     def on_chart_title_changed(self):
         """Handle chart title input change"""
         title = self.chart_title_input.text()
-        
+
         # Save to config
         self.config.set_chart_title(title)
-    
+
+    def on_dark_chart_changed(self):
+        """Handle dark chart background checkbox change"""
+        dark = self.dark_chart_checkbox.isChecked()
+        self.config.set_dark_chart(dark)
+        self.apply_chart_theme(dark)
+
+    def apply_chart_theme(self, dark: bool):
+        """Apply light or dark theme to the chart widget"""
+        if not hasattr(self, 'chart_widget'):
+            return
+        if dark:
+            bg, fg, axis_color = 'k', (200, 200, 200), (200, 200, 200)
+        else:
+            bg, fg, axis_color = 'w', (0, 0, 0), (0, 0, 0)
+        self.chart_widget.setBackground(bg)
+        for axis in ('left', 'bottom', 'right'):
+            ax = self.chart_widget.getAxis(axis)
+            ax.setPen(pg.mkPen(color=axis_color))
+            ax.setTextPen(pg.mkPen(color=fg))
+        self.chart_widget.setLabel('left', 'Voltage', units='V', color='blue')
+        self.chart_widget.setLabel('bottom', 'Time', units='seconds', color=fg)
+        self.chart_widget.setLabel('right', 'Current', units='mA', color='green')
+
     def on_capacity_changed(self):
         """Handle capacity value change"""
         self.update_estimated_time()
@@ -1503,11 +1544,14 @@ class MainWindow(QMainWindow):
             self,
             "Help",
             "Battery Tester Help\n\n" +
-            "1. Select COM port and click Connect\n" +
-            "2. Set test parameters (current, voltage, capacity)\n" +
-            "3. Click Start Test\n" +
-            "4. Monitor real-time discharge curve\n" +
-            "5. Export results when complete"
+            "1. Power on EL and connect USB cable\n" +
+            "2. Select COM port and click Connect\n" +
+            "3. Use EL encoder to select Battery Test mode\n" +
+            "4. Set test parameters (current, voltage, capacity)\n" +
+            "5. Click Start Test\n" +
+            "6. Check EL display for correct parameters and press encoder to enable current flow\n" +
+            "7. Monitor real-time discharge curve\n" +
+            "8. Export results when complete"
         )
     
     def show_about(self):
