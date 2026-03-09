@@ -29,6 +29,8 @@ class TestParameters:
     loop_delay_ms: int = 0  # Loop delay (not used in v3.04)
     tolerance_percent: int = 1  # Current tolerance (not used in v3.04)
     beep_enabled: bool = False  # Beep on completion
+    battery_weight: int = 0  # Battery weight in grams (0 = not tested)
+    chart_title: str = ""  # Title for saved chart
     
     def calculate_max_time_minutes(self) -> int:
         """

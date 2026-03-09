@@ -91,7 +91,9 @@ class ConfigManager:
             sample_interval_sec=self.get_int('SampleTime', 10),
             loop_delay_ms=self.get_int('LoopDelay', 0),
             tolerance_percent=self.get_int('Tolerance', 1),
-            beep_enabled=self.get_bool('Beep', False)
+            beep_enabled=self.get_bool('Beep', False),
+            battery_weight=self.get_battery_weight(),
+            chart_title=self.get_chart_title()
         )
     
     def save_test_parameters(self, params: TestParameters):
@@ -102,6 +104,8 @@ class ConfigManager:
         self.set_value('LoopDelay', params.loop_delay_ms)
         self.set_value('Tolerance', params.tolerance_percent)
         self.set_value('Beep', params.beep_enabled)
+        self.set_battery_weight(params.battery_weight)
+        self.set_chart_title(params.chart_title)
         self.save()
     
     def get_cutoff_voltage(self) -> float:
@@ -197,18 +201,49 @@ class ConfigManager:
         width = self.get_int('WindowWidth', 1200)
         height = self.get_int('WindowHeight', 800)
         
-        # Validate window position - ensure it's visible on screen
-        # Minimum y position to ensure menu bar is accessible
-        if y < 0:
-            y = 0
-        if x < 0:
-            x = 0
-            
         # Ensure reasonable minimum size
         if width < 800:
             width = 800
         if height < 600:
             height = 600
+        
+        # Validate window position - ensure it's visible on screen
+        try:
+            from PyQt6.QtGui import QGuiApplication
+            from PyQt6.QtCore import QRect
+            
+            # Get available screen geometry
+            screens = QGuiApplication.screens()
+            if screens:
+                # Check if window would be visible on any screen
+                window_rect = QRect(x, y, width, height)
+                visible_on_screen = False
+                
+                for screen in screens:
+                    screen_geom = screen.geometry()
+                    # Window is visible if at least 100x100 pixels are on screen
+                    if window_rect.intersects(screen_geom):
+                        intersection = window_rect.intersected(screen_geom)
+                        if intersection.width() >= 100 and intersection.height() >= 100:
+                            visible_on_screen = True
+                            break
+                
+                # If not visible on any screen, center on primary screen
+                if not visible_on_screen:
+                    primary_screen = QGuiApplication.primaryScreen()
+                    if primary_screen:
+                        screen_geom = primary_screen.availableGeometry()
+                        x = screen_geom.x() + (screen_geom.width() - width) // 2
+                        y = screen_geom.y() + (screen_geom.height() - height) // 2
+                        # Ensure we're within bounds
+                        x = max(screen_geom.x(), min(x, screen_geom.x() + screen_geom.width() - width))
+                        y = max(screen_geom.y(), min(y, screen_geom.y() + screen_geom.height() - height))
+        except Exception:
+            # Fallback: just ensure no negative values
+            if x < 0:
+                x = 100
+            if y < 0:
+                y = 100
             
         return x, y, width, height
     
@@ -247,4 +282,22 @@ class ConfigManager:
     def set_beep_enabled(self, enabled: bool):
         """Save beep notification setting"""
         self.set_value('Beep', enabled)
+        self.save()
+    
+    def get_battery_weight(self) -> int:
+        """Get battery weight in grams (0 = not tested)"""
+        return self.get_int('BatteryWeight', 0)
+    
+    def set_battery_weight(self, weight_grams: int):
+        """Save battery weight in grams"""
+        self.set_value('BatteryWeight', weight_grams)
+        self.save()
+    
+    def get_chart_title(self) -> str:
+        """Get chart title for saved images"""
+        return self.get_string('ChartTitle', '')
+    
+    def set_chart_title(self, title: str):
+        """Save chart title for saved images"""
+        self.set_value('ChartTitle', title)
         self.save()

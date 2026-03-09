@@ -357,6 +357,7 @@ class MainWindow(QMainWindow):
         self.cell_count_combo = QComboBox()
         self.cell_count_combo.addItems([str(n) for n in range(1, 25)] + ["Enter max voltage"])
         self.cell_count_combo.setItemDelegate(CompactDelegate(self.cell_count_combo))
+        self.cell_count_combo.setToolTip("Number of cells in series")
         self.cell_count_combo.currentIndexChanged.connect(self.on_cell_count_changed)
         layout.addWidget(self.cell_count_combo, 1, 1)
 
@@ -371,22 +372,34 @@ class MainWindow(QMainWindow):
         max_current = self.config.get_max_current()
         self.current_spin.setRange(5, max_current)
         self.current_spin.setValue(self.test_data.parameters.current_ma)
+        self.current_spin.setToolTip("Discharge current")
         self.current_spin.valueChanged.connect(self.on_current_changed)
         layout.addWidget(self.current_spin, 2, 1)
 
-        # Add spacing after user-set parameters group
-        layout.setRowMinimumHeight(2, 35)
+        # Rated Capacity (mAh)
+        label = QLabel("Rated Capacity (mAh):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 3, 0)
+        self.capacity_spin = QSpinBox()
+        self.capacity_spin.setRange(5, 10000)
+        self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
+        self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
+        layout.addWidget(self.capacity_spin, 3, 1)
+
+        # Add spacing after user input fields
+        layout.setRowMinimumHeight(3, 60)
 
         # Cutoff voltage (V) — combo for list mode, spinbox for free-entry mode
         label = QLabel("Cutoff Voltage (V):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 3, 0)
+        layout.addWidget(label, 4, 0)
 
         self.voltage_input_stack = QStackedWidget()
 
         self.voltage_combo = QComboBox()
         self.populate_voltage_combo()
         self.voltage_combo.setItemDelegate(CompactDelegate(self.voltage_combo))
+        self.voltage_combo.setToolTip("Minimum discharge voltage (cell count × per-cell cutoff for battery type)")
         self.voltage_combo.currentIndexChanged.connect(self.on_voltage_combo_changed)
         self.voltage_input_stack.addWidget(self.voltage_combo)   # index 0
 
@@ -395,44 +408,73 @@ class MainWindow(QMainWindow):
         self.voltage_spinbox.setDecimals(2)
         self.voltage_spinbox.setSingleStep(0.1)
         self.voltage_spinbox.setValue(4.20)
+        self.voltage_spinbox.setToolTip("Minimum discharge voltage (custom value)")
         self.voltage_spinbox.valueChanged.connect(self.update_effective_cutoff_display)
         self.voltage_input_stack.addWidget(self.voltage_spinbox)  # index 1
 
         # Constrain stack to single-line height
         self.voltage_input_stack.setFixedHeight(self.voltage_combo.sizeHint().height())
 
-        layout.addWidget(self.voltage_input_stack, 3, 1)
+        layout.addWidget(self.voltage_input_stack, 4, 1)
 
         # Effective cutoff (shown only in cell-count mode)
         self.effective_cutoff_label = QLabel("Effective cutoff:")
         self.effective_cutoff_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(self.effective_cutoff_label, 4, 0)
+        layout.addWidget(self.effective_cutoff_label, 5, 0)
         self.effective_cutoff_value = QLabel("---")
-        layout.addWidget(self.effective_cutoff_value, 4, 1)
+        layout.addWidget(self.effective_cutoff_value, 5, 1)
 
-        # Add spacing after cutoff voltage group
-        layout.setRowMinimumHeight(4, 50)
-
-        # Capacity (mAh)
-        label = QLabel("Rated Capacity (mAh):")
-        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 5, 0)
-        self.capacity_spin = QSpinBox()
-        self.capacity_spin.setRange(5, 10000)
-        self.capacity_spin.setValue(self.test_data.parameters.capacity_mah)
-        self.capacity_spin.valueChanged.connect(self.on_capacity_changed)
-        layout.addWidget(self.capacity_spin, 5, 1)
-
-        # Max discharge time (calculated)
-        label = QLabel("Max. discharge time:")
+        # Battery Weight (grams)
+        label = QLabel("Battery Weight (grams):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 6, 0)
+        self.battery_weight_input = QSpinBox()
+        self.battery_weight_input.setRange(0, 1000)
+        self.battery_weight_input.setSingleStep(1)
+        self.battery_weight_input.setValue(0)
+        self.battery_weight_input.setSpecialValueText("a good quality indicator")
+        self.battery_weight_input.setToolTip(
+            "Battery weight in grams.\n"
+            "Included when saving/printing chart images.\n"
+            "Not shown when set to 0."
+        )
+        self.battery_weight_input.valueChanged.connect(self.on_battery_weight_changed)
+        self.update_battery_weight_style()  # Set initial style
+        layout.addWidget(self.battery_weight_input, 6, 1)
+
+        # Add spacing after cutoff voltage group
+        layout.setRowMinimumHeight(6, 50)
+
+        # Max discharge time (calculated + editable)
+        label = QLabel("Max. discharge time:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 7, 0)
+        
+        # Create horizontal layout for calculated time + editable field
+        time_layout = QHBoxLayout()
+        time_layout.setSpacing(5)
+        
         self.time_label = QLabel("--:--")
-        layout.addWidget(self.time_label, 6, 1)
+        self.time_label.setStyleSheet("font-weight: normal;")
+        self.time_label.setToolTip("Auto-calculated discharge time (Rated Capacity ÷ Load Current)")
+        time_layout.addWidget(self.time_label)
+        
+        from PyQt6.QtWidgets import QLineEdit
+        self.time_input = QLineEdit()
+        self.time_input.setPlaceholderText("Override HH:MM")
+        self.time_input.setMaximumWidth(130)
+        self.time_input.setToolTip(
+            "Calculated from rated capacity ÷ load current.\n"
+            "Leave empty to use calculated time, or enter HH:MM to override."
+        )
+        time_layout.addWidget(self.time_input)
+        time_layout.addStretch()
+        
+        layout.addLayout(time_layout, 7, 1)
         self.update_estimated_time()
 
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(7, 1)
+        layout.setRowStretch(8, 1)
 
         # Set initial visibility based on default battery type
         self.on_battery_type_changed()
@@ -479,8 +521,24 @@ class MainWindow(QMainWindow):
         self.beep_enabled_checkbox.stateChanged.connect(self.on_beep_enabled_changed)
         layout.addWidget(self.beep_enabled_checkbox, 1, 1)
 
+        # Add spacing after beep checkbox
+        layout.setRowMinimumHeight(1, 50)
+
+        # Chart title
+        label = QLabel("Chart Title:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 2, 0)
+        from PyQt6.QtWidgets import QLineEdit
+        self.chart_title_input = QLineEdit()
+        self.chart_title_input.setPlaceholderText("Enter a title for saved/printed charts (optional)")
+        self.chart_title_input.setToolTip(
+            "Optional title added to saved/printed chart images."
+        )
+        self.chart_title_input.textChanged.connect(self.on_chart_title_changed)
+        layout.addWidget(self.chart_title_input, 2, 1)
+
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(2, 1)
+        layout.setRowStretch(3, 1)
 
         group.setLayout(layout)
         return group
@@ -761,6 +819,13 @@ class MainWindow(QMainWindow):
             if abs(float(self.voltage_combo.itemText(i)) - params.cutoff_voltage) < 0.01:
                 self.voltage_combo.setCurrentIndex(i)
                 break
+        
+        # Load battery weight and chart title
+        self.battery_weight_input.setValue(params.battery_weight)
+        self.update_battery_weight_style()
+        self.chart_title_input.setText(params.chart_title)
+        
+        self.update_estimated_time()
     
     def update_estimated_time(self):
         """Update estimated test time display"""
@@ -852,6 +917,33 @@ class MainWindow(QMainWindow):
         
         # Save to config
         self.config.set_beep_enabled(beep_enabled)
+    
+    def on_battery_weight_changed(self):
+        """Handle battery weight input change"""
+        weight = self.battery_weight_input.value()
+        
+        # Save to config
+        self.config.set_battery_weight(weight)
+        
+        # Update style to dim special value text
+        self.update_battery_weight_style()
+    
+    def update_battery_weight_style(self):
+        """Update battery weight spinbox style to dim special value text"""
+        if self.battery_weight_input.value() == 0:
+            # Dim the text when showing special value (like placeholder text)
+            # Use a gray color similar to placeholder text
+            self.battery_weight_input.setStyleSheet("QSpinBox { color: #808080; } QSpinBox::up-button { border: none; } QSpinBox::down-button { border: none; }")
+        else:
+            # Normal text color
+            self.battery_weight_input.setStyleSheet("")
+    
+    def on_chart_title_changed(self):
+        """Handle chart title input change"""
+        title = self.chart_title_input.text()
+        
+        # Save to config
+        self.config.set_chart_title(title)
     
     def on_capacity_changed(self):
         """Handle capacity value change"""
@@ -1065,7 +1157,9 @@ class MainWindow(QMainWindow):
             cutoff_voltage=self.get_effective_cutoff_voltage(),
             capacity_mah=self.capacity_spin.value(),
             sample_interval_sec=1,
-            beep_enabled=self.beep_enabled_checkbox.isChecked()
+            beep_enabled=self.beep_enabled_checkbox.isChecked(),
+            battery_weight=self.battery_weight_input.value(),
+            chart_title=self.chart_title_input.text()
         )
         
         # Validate against maximum current limit
@@ -1276,36 +1370,123 @@ class MainWindow(QMainWindow):
     
     # Menu actions
     def save_chart(self):
-        """Save chart as image"""
-        QMessageBox.information(
-            self,
-            "Not Implemented",
-            "Save Chart feature is not yet implemented.\n\nThis feature will allow you to save the discharge chart as an image file."
+        """Save chart as image with test results overlay"""
+        if not self.test_data.data_points:
+            QMessageBox.warning(
+                self,
+                "No Data",
+                "No test data available to save.\n\nPlease run a battery test first."
+            )
+            return
+        
+        success, error = ExportManager.export_chart_image(
+            self.chart_widget,
+            self.test_data,
+            self.test_data.parameters,
+            parent=self
         )
+        
+        if error:
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to save chart image:\n\n{error}"
+            )
+        elif success:
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                "Chart image saved successfully!"
+            )
     
     def export_csv(self):
-        """Export data as CSV"""
-        QMessageBox.information(
-            self,
-            "Not Implemented",
-            "Export CSV feature is not yet implemented.\n\nThis feature will allow you to export test data to a CSV file for analysis."
+        """Export test data as CSV file"""
+        if not self.test_data.data_points:
+            QMessageBox.warning(
+                self,
+                "No Data",
+                "No test data available to export.\n\nPlease run a battery test first."
+            )
+            return
+        
+        # Check minimum data points (like Delphi version requires 6 points)
+        if len(self.test_data.data_points) < 6:
+            QMessageBox.warning(
+                self,
+                "Insufficient Data",
+                "Not enough data to export.\n\nAt least 6 data points are required."
+            )
+            return
+        
+        success, error = ExportManager.export_to_csv(
+            self.test_data,
+            self.test_data.parameters,
+            parent=self
         )
+        
+        if error:
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to export CSV:\n\n{error}"
+            )
+        elif success:
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                "Test data exported to CSV successfully!"
+            )
     
     def print_chart(self):
-        """Print chart"""
-        QMessageBox.information(
-            self,
-            "Not Implemented",
-            "Print Chart feature is not yet implemented.\n\nThis feature will allow you to print the discharge chart."
+        """Print chart to printer or PDF"""
+        if not self.test_data.data_points:
+            QMessageBox.warning(
+                self,
+                "No Data",
+                "No test data available to print.\n\nPlease run a battery test first."
+            )
+            return
+        
+        success, error = ExportManager.print_chart(
+            self.chart_widget,
+            self.test_data,
+            self.test_data.parameters,
+            parent=self
         )
+        
+        if error:
+            QMessageBox.critical(
+                self,
+                "Print Failed",
+                f"Failed to print chart:\n\n{error}"
+            )
+        elif success:
+            # Print dialog already shows success/completion
+            pass
     
     def copy_chart(self):
         """Copy chart to clipboard"""
-        QMessageBox.information(
-            self,
-            "Not Implemented",
-            "Copy Chart feature is not yet implemented.\n\nThis feature will allow you to copy the chart to the clipboard."
+        if not self.test_data.data_points:
+            QMessageBox.warning(
+                self,
+                "No Data",
+                "No test data available to copy.\n\nPlease run a battery test first."
+            )
+            return
+        
+        success, error = ExportManager.copy_chart_to_clipboard(
+            self.chart_widget,
+            parent=self
         )
+        
+        if error:
+            QMessageBox.critical(
+                self,
+                "Copy Failed",
+                f"Failed to copy chart to clipboard:\n\n{error}"
+            )
+        elif success:
+            self.statusbar.showMessage("Chart copied to clipboard", 3000)
     
     def show_help(self):
         """Show help dialog"""

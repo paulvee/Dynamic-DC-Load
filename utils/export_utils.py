@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 import locale
 
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from PyQt6.QtGui import QPainter, QPixmap, QPdfWriter, QPageLayout, QPageSize
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QInputDialog
+from PyQt6.QtGui import QPainter, QPixmap, QPdfWriter, QPageLayout, QPageSize, QColor, QFont
 from PyQt6.QtCore import QMarginsF, QRectF, Qt
 from PyQt6.QtPrintSupport import QPrintDialog, QPrinter
 
@@ -97,7 +97,7 @@ class ExportManager:
     def export_chart_image(chart_widget, test_data: TestData, 
                           test_params: TestParameters, parent=None) -> Tuple[bool, Optional[str]]:
         """
-        Export chart as image with metadata overlay
+        Export chart as image with metadata overlay (matches Delphi version)
         
         Args:
             chart_widget: The pyqtgraph PlotWidget to export
@@ -111,7 +111,17 @@ class ExportManager:
         if not test_data.data_points:
             return False, "No data to export"
         
+        # Use battery weight from parameters (set in Setup tab)
+        if test_params.battery_weight > 0:
+            battery_weight = f"{test_params.battery_weight} grams"
+        else:
+            battery_weight = "a good quality indicator"
+        
+        # Use chart title from parameters if provided
+        chart_title = test_params.chart_title if test_params.chart_title else "battery_chart"
+        
         # File dialog
+        default_filename = f"{chart_title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         file_path, _ = QFileDialog.getSaveFileName(
             parent,
             "Save Chart Image",
@@ -130,35 +140,62 @@ class ExportManager:
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             
-            # Semi-transparent background for text
-            from PyQt6.QtGui import QColor, QFont
-            painter.fillRect(10, 10, 280, 140, QColor(255, 255, 255, 200))
+            # Calculate position for text overlay (centered-right area like Delphi)
+            chart_width = pixmap.width()
+            chart_height = pixmap.height()
+            text_x = int(chart_width * 0.45)  # Start at 45% width
+            text_y = int(chart_height * 0.35)  # Start at 35% height
             
-            # Draw metadata text
+            # Draw metadata text with Courier New font like Delphi
             painter.setPen(QColor(0, 0, 0))
-            font = QFont("Arial", 10)
+            
+            # Title - Bold and underlined
+            font = QFont("Courier New", 9)
+            font.setBold(True)
+            font.setUnderline(True)
             painter.setFont(font)
             
-            y_pos = 30
-            line_height = 18
+            # Use custom title if provided, otherwise use default
+            title_text = test_params.chart_title if test_params.chart_title else "Battery Discharge Test Results"
+            painter.drawText(text_x, text_y, title_text)
             
-            # Get final values
+            # Reset font for data - normal weight, no underline
+            font.setBold(False)
+            font.setUnderline(False)
+            painter.setFont(font)
+            
+            # Get test data for display
+            first_point = test_data.data_points[0]
             last_point = test_data.data_points[-1]
-            duration_str = f"{last_point.elapsed_seconds // 60}m {last_point.elapsed_seconds % 60}s"
+            
+            # Format duration as HH:MM:SS
+            duration_seconds = last_point.elapsed_seconds
+            hours = duration_seconds // 3600
+            minutes = (duration_seconds % 3600) // 60
+            seconds = duration_seconds % 60
+            duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
+            # Build metadata lines (matching Delphi format exactly)
+            line_height = 15
+            y_offset = text_y + 15
             
             metadata_lines = [
-                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                f"Duration: {duration_str}",
-                f"Current: {test_params.current_ma} mA",
-                f"Cutoff: {test_params.cutoff_voltage:.2f} V",
-                f"Start V: {test_data.data_points[0].voltage:.3f} V",
-                f"End V: {last_point.voltage:.3f} V",
-                f"Capacity: {last_point.capacity_mah:.1f} mAh"
+                f"Date of test    : {datetime.now().strftime('%a %d %b %Y')}",
+                f"Duration of test: {duration_str}",
+                f"Rated  capacity : {test_params.capacity_mah} mAh",
+                f"Tested capacity : {last_point.capacity_mah:.1f} mAh",
+                f"Initial voltage : {first_point.voltage:.2f}V",
+                f"Cutoff voltage  : {test_params.cutoff_voltage:.2f}V",
+                f"Test current    : {test_params.current_ma} mA",
             ]
             
+            # Only include battery weight if it's provided (not 0)
+            if test_params.battery_weight > 0:
+                metadata_lines.append(f"Battery weight  : {battery_weight}")
+            
             for line in metadata_lines:
-                painter.drawText(20, y_pos, line)
-                y_pos += line_height
+                painter.drawText(text_x, y_offset, line)
+                y_offset += line_height
             
             painter.end()
             
