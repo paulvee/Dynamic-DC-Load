@@ -724,6 +724,9 @@ class MainWindow(QMainWindow):
         
         # Update tracked port list
         self.last_port_list = ports
+        
+        # Update UI state to enable/disable Connect button
+        self.update_ui_state()
     
     def check_port_changes(self):
         """Periodically check for port changes (plug/unplug events)"""
@@ -880,7 +883,9 @@ class MainWindow(QMainWindow):
         """Handle COM port selection change"""
         if self.controller.is_connected():
             self.controller.disconnect()
-            self.update_ui_state()
+        
+        # Update UI state to enable/disable Connect button based on valid port selection
+        self.update_ui_state()
     
     def on_current_changed(self):
         """Handle current value change"""
