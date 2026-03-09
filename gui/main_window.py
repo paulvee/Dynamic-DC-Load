@@ -164,7 +164,8 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(control_tab, "Setup")
         
         main_layout.addWidget(self.tab_widget)
-        
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+
         # Status bar
         self.create_status_bar()
     
@@ -583,13 +584,26 @@ class MainWindow(QMainWindow):
         self.voltage_label = QLabel("-------")
         self.voltage_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
         layout.addWidget(self.voltage_label, row, 1)
-        
+        self.autorange_voltage_checkbox = QCheckBox("Auto Range")
+        self.autorange_voltage_checkbox.setChecked(False)
+        self.autorange_voltage_checkbox.setToolTip(
+            "Automatically scale the voltage Y-axis so data stays\n"
+            "between 10% and 90% of the chart window."
+        )
+        self.autorange_voltage_checkbox.stateChanged.connect(self.on_autorange_voltage_changed)
+        layout.addWidget(self.autorange_voltage_checkbox, row, 2)
+
         row += 1
         layout.addWidget(QLabel("Current:"), row, 0)
         self.current_label = QLabel("-------")
         self.current_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
         layout.addWidget(self.current_label, row, 1)
-        
+        self.graph_current_checkbox = QCheckBox("Graph Current")
+        self.graph_current_checkbox.setChecked(True)
+        self.graph_current_checkbox.setToolTip("Show or hide the current trace on the real-time chart.")
+        self.graph_current_checkbox.stateChanged.connect(self.on_graph_current_changed)
+        layout.addWidget(self.graph_current_checkbox, row, 2)
+
         # Add vertical spacer between columns
         layout.setColumnMinimumWidth(2, 20)
         
@@ -847,6 +861,7 @@ class MainWindow(QMainWindow):
         self.apply_chart_theme(self.config.get_dark_chart())
 
         self.update_estimated_time()
+        self.update_display_parameters()
     
     def update_estimated_time(self):
         """Update estimated test time display"""
@@ -972,6 +987,35 @@ class MainWindow(QMainWindow):
         # Save to config
         self.config.set_chart_title(title)
 
+    def on_tab_changed(self, index: int):
+        """Update display parameters when switching to the Graph tab"""
+        if index == 0:  # Graph tab
+            self.update_display_parameters()
+
+    def on_graph_current_changed(self):
+        """Handle Graph Current checkbox change"""
+        show = self.graph_current_checkbox.isChecked()
+        self.current_curve.setVisible(show)
+        self.chart_widget.getAxis('right').setVisible(show)
+        if not show:
+            self.current_curve.setData([], [])
+
+    def on_autorange_voltage_changed(self):
+        """Handle Auto Range voltage checkbox change — apply immediately in both directions"""
+        if self.autorange_voltage_checkbox.isChecked():
+            _, voltages = self.test_data.get_voltage_series()
+            if voltages:
+                v_min, v_max = min(voltages), max(voltages)
+                span = v_max - v_min if v_max != v_min else 1.0
+                margin = span * (0.10 / 0.80)
+                self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
+        else:
+            battery_type = self.battery_type_combo.currentText()
+            max_voltage = self.get_battery_max_voltage(battery_type)
+            if self._cell_count_mode_active():
+                max_voltage *= int(self.cell_count_combo.currentText())
+            self.chart_widget.setYRange(0, max_voltage, padding=0)
+
     def on_dark_chart_changed(self):
         """Handle dark chart background checkbox change"""
         dark = self.dark_chart_checkbox.isChecked()
@@ -1079,6 +1123,20 @@ class MainWindow(QMainWindow):
             # Regular combo selection
             voltage_value = self.get_effective_cutoff_voltage()
             self.display_cutoff.setText(f"{voltage_value:.2f}")
+
+    def update_display_parameters(self):
+        """Populate the Current Readings panel with current setup values"""
+        if not hasattr(self, 'display_battery_type'):
+            return
+        params = self.test_data.parameters
+        self.display_battery_type.setText(self.battery_type_combo.currentText())
+        self.display_current.setText(f"{params.current_ma}")
+        self.update_effective_cutoff_display()
+        self.display_capacity.setText(f"{params.capacity_mah}")
+        max_time = params.calculate_max_time_minutes()
+        hours = int(max_time // 60)
+        minutes = int(max_time % 60)
+        self.display_max_time.setText(f"{hours} hr : {minutes} min")
 
     def toggle_connection(self):
         """Toggle serial connection"""
@@ -1394,12 +1452,27 @@ class MainWindow(QMainWindow):
         times, voltages = self.test_data.get_voltage_series()
         _, currents = self.test_data.get_current_series()
         
-        self.voltage_curve.setData(times, voltages)
-        self.current_curve.setData(times, currents)
+        # Auto-range voltage axis: keep data between 10% and 90% of window
+        if self.autorange_voltage_checkbox.isChecked() and voltages:
+            v_min, v_max = min(voltages), max(voltages)
+            span = v_max - v_min if v_max != v_min else 1.0
+            margin = span * (0.10 / 0.80)  # 80% of window = data span → 10% margins each side
+            self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
         
-        # Expand X-axis if data exceeds 10 minutes (600 seconds)
-        if times and times[-1] > 600:
-            self.chart_widget.setXRange(0, times[-1], padding=0.02)
+        # Switch X-axis to minutes after 300 seconds
+        if times:
+            if times[-1] > 300:
+                plot_times = [t / 60.0 for t in times]
+                self.chart_widget.setLabel('bottom', 'Time', units='minutes')
+                x_max = plot_times[-1] if plot_times[-1] > 10 else 10
+            else:
+                plot_times = times
+                self.chart_widget.setLabel('bottom', 'Time', units='seconds')
+                x_max = 600 if times[-1] <= 600 else times[-1]
+            self.voltage_curve.setData(plot_times, voltages)
+            if self.graph_current_checkbox.isChecked():
+                self.current_curve.setData(plot_times, currents)
+            self.chart_widget.setXRange(0, x_max, padding=0.02)
     
     def on_message_received(self, message: str):
         """Handle status message from controller"""
