@@ -261,10 +261,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.port_combo)
         
         # Refresh button
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.clicked.connect(self.refresh_ports)
-        refresh_btn.setToolTip("Refresh COM port list")
-        layout.addWidget(refresh_btn)
+        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.clicked.connect(self.refresh_ports)
+        self.refresh_btn.setToolTip("Refresh COM port list")
+        layout.addWidget(self.refresh_btn)
         
         self.connect_btn = QPushButton("Connect")
         self.connect_btn.clicked.connect(self.toggle_connection)
@@ -861,6 +861,7 @@ class MainWindow(QMainWindow):
         has_valid_port = self.port_combo.count() > 0 and self.port_combo.currentData() is not None
         
         self.connect_btn.setEnabled(has_valid_port and not is_connected)
+        self.refresh_btn.setEnabled(not is_connected)  # Disable refresh when connected
         self.start_btn.setEnabled(is_connected and not is_running)
         self.cancel_btn.setEnabled(is_running)
         self.new_test_btn.setEnabled(is_connected and not is_running)
@@ -869,10 +870,9 @@ class MainWindow(QMainWindow):
         if not is_connected:
             self.led_indicator.set_state('red')
             self.connect_btn.setText("Connect")
-        elif is_running:
-            self.led_indicator.set_state('green')
         else:
-            self.led_indicator.set_state('yellow')
+            # Connected - show green whether idle or running
+            self.led_indicator.set_state('green')
             self.connect_btn.setText("Disconnect")
         
         # Enable/disable parameters during test

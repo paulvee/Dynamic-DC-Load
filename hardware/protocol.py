@@ -232,6 +232,10 @@ class ArduinoProtocol:
         Returns True if successful, False otherwise.
         """
         try:
+            # Clear any pending data in buffers to ensure clean start
+            self.clear_buffer()
+            time.sleep(0.2)  # Give controller time to be ready
+            
             self.serial.write(f"{current_ma}\n".encode())
             time.sleep(0.15)
             
@@ -270,6 +274,8 @@ class ArduinoProtocol:
         """
         try:
             self.serial.write("999\n".encode())
+            time.sleep(0.3)  # Give controller time to process cancel command
+            self.clear_buffer()  # Clear any pending data
             return True
         except serial.SerialException as e:
             print(f"Error sending cancel: {e}")
