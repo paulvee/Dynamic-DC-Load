@@ -211,7 +211,7 @@ class ExportManager:
     def print_chart(chart_widget, test_data: TestData, 
                    test_params: TestParameters, parent=None) -> Tuple[bool, Optional[str]]:
         """
-        Print chart to printer or PDF
+        Print chart to printer or PDF with metadata overlay (matches export_chart_image)
         
         Args:
             chart_widget: The pyqtgraph PlotWidget to print
@@ -237,20 +237,90 @@ class ExportManager:
             if dialog.exec() != QPrintDialog.DialogCode.Accepted:
                 return False, None  # User cancelled
             
-            # Grab chart as pixmap
-            pixmap = chart_widget.grab()
+            # Grab chart as pixmap first
+            chart_pixmap = chart_widget.grab()
             
-            # Create painter
-            painter = QPainter(printer)
+            # Create a new pixmap with metadata overlay
+            pixmap_with_metadata = QPixmap(chart_pixmap.size())
+            pixmap_with_metadata.fill(Qt.GlobalColor.white)
+            
+            # Draw chart onto the new pixmap
+            metadata_painter = QPainter(pixmap_with_metadata)
+            metadata_painter.drawPixmap(0, 0, chart_pixmap)
+            
+            # Add metadata overlay (matching export_chart_image format)
+            metadata_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # Calculate position for text overlay (centered-right area like Delphi)
+            chart_width = pixmap_with_metadata.width()
+            chart_height = pixmap_with_metadata.height()
+            text_x = int(chart_width * 0.45)  # Start at 45% width
+            text_y = int(chart_height * 0.35)  # Start at 35% height
+            
+            # Draw metadata text with Courier New font like Delphi
+            metadata_painter.setPen(QColor(0, 0, 0))
+            
+            # Title - Bold and underlined
+            font = QFont("Courier New", 9)
+            font.setBold(True)
+            font.setUnderline(True)
+            metadata_painter.setFont(font)
+            
+            # Use custom title if provided, otherwise use default
+            title_text = test_params.chart_title if test_params.chart_title else "Battery Discharge Test Results"
+            metadata_painter.drawText(text_x, text_y, title_text)
+            
+            # Reset font for data - normal weight, no underline
+            font.setBold(False)
+            font.setUnderline(False)
+            metadata_painter.setFont(font)
+            
+            # Get test data for display
+            first_point = test_data.data_points[0]
+            last_point = test_data.data_points[-1]
+            
+            # Format duration as HH:MM:SS
+            duration_seconds = last_point.elapsed_seconds
+            hours = duration_seconds // 3600
+            minutes = (duration_seconds % 3600) // 60
+            seconds = duration_seconds % 60
+            duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            
+            # Build metadata lines (matching Delphi and export format)
+            line_height = 15
+            y_offset = text_y + 15
+            
+            metadata_lines = [
+                f"Date of test    : {datetime.now().strftime('%a %d %b %Y')}",
+                f"Duration of test: {duration_str}",
+                f"Rated  capacity : {test_params.capacity_mah} mAh",
+                f"Tested capacity : {last_point.capacity_mah:.1f} mAh",
+                f"Initial voltage : {first_point.voltage:.2f}V",
+                f"Cutoff voltage  : {test_params.cutoff_voltage:.2f}V",
+                f"Test current    : {test_params.current_ma} mA",
+            ]
+            
+            # Only include battery weight if it's provided (not 0)
+            if test_params.battery_weight > 0:
+                metadata_lines.append(f"Battery weight  : {test_params.battery_weight} grams")
+            
+            for line in metadata_lines:
+                metadata_painter.drawText(text_x, y_offset, line)
+                y_offset += line_height
+            
+            metadata_painter.end()
+            
+            # Now print the pixmap with metadata
+            print_painter = QPainter(printer)
             
             # Calculate scaling to fit page
             page_rect = printer.pageLayout().paintRectPixels(printer.resolution())
-            pixmap_rect = pixmap.rect()
+            pixmap_rect = pixmap_with_metadata.rect()
             
             # Scale to fit width or height
             scale_x = page_rect.width() / pixmap_rect.width()
             scale_y = page_rect.height() / pixmap_rect.height()
-            scale = min(scale_x, scale_y) * 0.9  # 90% to leave margins
+            scale = min(scale_x, scale_y) * 0.95  # 95% to leave margins
             
             # Calculate centered position
             scaled_width = pixmap_rect.width() * scale
@@ -258,34 +328,12 @@ class ExportManager:
             x_offset = (page_rect.width() - scaled_width) / 2
             y_offset = (page_rect.height() - scaled_height) / 2
             
-            # Draw pixmap
+            # Draw pixmap with metadata
             target_rect = QRectF(x_offset, y_offset, scaled_width, scaled_height)
             source_rect = QRectF(pixmap_rect)
-            painter.drawPixmap(target_rect, pixmap, source_rect)
+            print_painter.drawPixmap(target_rect, pixmap_with_metadata, source_rect)
             
-            # Add metadata at bottom
-            painter.setPen(QColor(0, 0, 0))
-            font = QFont("Arial", 10)
-            painter.setFont(font)
-            
-            last_point = test_data.data_points[-1]
-            duration_str = f"{last_point.elapsed_seconds // 60}m {last_point.elapsed_seconds % 60}s"
-            
-            metadata_text = (
-                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}  |  "
-                f"Duration: {duration_str}  |  "
-                f"Current: {test_params.current_ma} mA  |  "
-                f"Cutoff: {test_params.cutoff_voltage:.2f} V  |  "
-                f"Capacity: {last_point.capacity_mah:.1f} mAh"
-            )
-            
-            painter.drawText(
-                QRectF(x_offset, y_offset + scaled_height + 20, scaled_width, 30),
-                Qt.AlignmentFlag.AlignCenter,
-                metadata_text
-            )
-            
-            painter.end()
+            print_painter.end()
             
             return True, None
             
