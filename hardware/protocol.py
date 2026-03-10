@@ -6,7 +6,7 @@ This module handles communication with the Arduino/ESP32 battery tester controll
 Protocol Details:
 -----------------
 **Setup (PC → Arduino):**
-Sends 9 newline-terminated parameters:
+Sends 10 newline-terminated parameters:
 1. target_mA (int)
 2. cutoff_voltage (float)  
 3. time_limit (int) - in minutes
@@ -15,7 +15,13 @@ Sends 9 newline-terminated parameters:
 6. offset (float) - not used in v3.04
 7. tolerance (int) - not used in v3.04
 8. beep (int) - not used in v3.04
-9. cancel (int) - 0 to start, 999 to cancel
+9. recovery_time (int) - accepted by DL but not used (app-side timeout)
+10. cancel (int) - 0 to start, 999 to cancel
+
+**Recovery Monitoring:**
+- DL accepts recovery_time parameter but does not track it
+- Python app monitors recovery timeout
+- When timeout expires, app sends cancel command (999) to terminate DL
 
 **Data Stream (Arduino → PC):**
 
@@ -214,10 +220,11 @@ class ArduinoProtocol:
         sample_interval_sec: int,
         loop_delay: int = 0,
         tolerance: int = 1,
-        beep_enabled: bool = False
+        beep_enabled: bool = False,
+        recovery_time_minutes: int = 5
     ) -> bool:
         """
-        Send test parameters to Arduino.
+        Send test parameters to ESP32.
         
         Parameters are sent as newline-terminated values in sequence:
         1. current_ma
@@ -227,7 +234,11 @@ class ArduinoProtocol:
         5. loop_delay (offset - not used in v3.04)
         6. tolerance (not used in v3.04)
         7. beep (not used in v3.04)
-        8. cancel flag (0 = start test)
+        8. recovery_time (accepted by DL but not used - app handles timeout)
+        9. cancel flag (0 = start test)
+        
+        Note: Recovery monitoring is app-side only. When recovery timeout expires,
+        the app sends cancel command (999) to terminate the DL.
         
         Returns True if successful, False otherwise.
         """
@@ -256,6 +267,9 @@ class ArduinoProtocol:
             
             beep_flag = '1' if beep_enabled else '0'
             self.serial.write(f"{beep_flag}\n".encode())
+            time.sleep(0.15)
+            
+            self.serial.write(f"{recovery_time_minutes}\n".encode())
             time.sleep(0.15)
             
             # Start test (0 = start, 999 = cancel)

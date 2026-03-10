@@ -104,7 +104,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.0.f (Python/PyQt6)"
+    VERSION = "v2.0.g (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
@@ -116,6 +116,12 @@ class MainWindow(QMainWindow):
         self.test_data = TestData(parameters=self.config.get_test_parameters())
         self.serial_worker: Optional[SerialWorker] = None
         self.last_port_list = []  # Track port changes
+        self._loading_settings = True  # Flag to prevent saving during init and load
+        
+        # Recovery monitoring state
+        self.recovery_start_time: Optional[datetime] = None
+        self.recovery_start_elapsed: int = 0  # Elapsed seconds when recovery started
+        self.recovery_marker: Optional[pg.InfiniteLine] = None  # Vertical line marker on chart
         
         # Initialize UI
         self.init_ui()
@@ -176,13 +182,6 @@ class MainWindow(QMainWindow):
         # File menu
         file_menu = menubar.addMenu("&File")
         
-        new_action = QAction("&New Test", self)
-        new_action.setShortcut("Ctrl+N")
-        new_action.triggered.connect(self.new_test)
-        file_menu.addAction(new_action)
-        
-        file_menu.addSeparator()
-        
         save_action = QAction("&Save As...", self)
         save_action.setShortcut("Ctrl+S")
         save_action.triggered.connect(self.save_chart)
@@ -238,7 +237,6 @@ class MainWindow(QMainWindow):
         # Note: Icons would normally be added here
         # For now, using text-only buttons
         
-        self.new_btn_toolbar = toolbar.addAction("New", self.new_test)
         self.save_btn_toolbar = toolbar.addAction("Save", self.save_chart)
         self.print_btn_toolbar = toolbar.addAction("Print", self.print_chart)
         self.copy_btn_toolbar = toolbar.addAction("Copy", self.copy_chart)
@@ -474,8 +472,23 @@ class MainWindow(QMainWindow):
         layout.addLayout(time_layout, 7, 1)
         self.update_estimated_time()
 
+        # Recovery monitoring time
+        label = QLabel("Recovery Time (min):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 8, 0)
+        self.recovery_time_spin = QSpinBox()
+        self.recovery_time_spin.setRange(1, 30)
+        self.recovery_time_spin.setSingleStep(1)
+        self.recovery_time_spin.setValue(5)
+        self.recovery_time_spin.setToolTip(
+            "Time to monitor voltage recovery after cutoff is reached.\n"
+            "Load will turn off, voltage monitoring continues."
+        )
+        self.recovery_time_spin.valueChanged.connect(self.on_recovery_time_changed)
+        layout.addWidget(self.recovery_time_spin, 8, 1)
+
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(8, 1)
+        layout.setRowStretch(9, 1)
 
         # Set initial visibility based on default battery type
         self.on_battery_type_changed()
@@ -649,11 +662,6 @@ class MainWindow(QMainWindow):
         self.cancel_btn.clicked.connect(self.cancel_test)
         self.cancel_btn.setEnabled(False)
         layout.addWidget(self.cancel_btn)
-        
-        self.new_test_btn = QPushButton("New Test")
-        self.new_test_btn.clicked.connect(self.new_test)
-        self.new_test_btn.setEnabled(False)
-        layout.addWidget(self.new_test_btn)
         
         layout.addStretch()
         
@@ -841,12 +849,26 @@ class MainWindow(QMainWindow):
     
     def load_settings(self):
         """Load saved settings"""
+        self._loading_settings = True  # Prevent saving during load
+        
         params = self.config.get_test_parameters()
         self.current_spin.setValue(params.current_ma)
         self.capacity_spin.setValue(params.capacity_mah)
         self.config.set_cutoff_voltage(params.cutoff_voltage)
         
-        # Find matching voltage in combo
+        # Load battery type and cell count FIRST (before voltage)
+        battery_type_index = self.config.get_battery_type()
+        if 0 <= battery_type_index < self.battery_type_combo.count():
+            self.battery_type_combo.setCurrentIndex(battery_type_index)
+        
+        cell_count_index = self.config.get_cell_count()
+        if 0 <= cell_count_index < self.cell_count_combo.count():
+            self.cell_count_combo.setCurrentIndex(cell_count_index)
+        
+        # Update voltage combo options based on battery type/cell count
+        self.on_cell_count_changed(auto_set_voltage=False)
+        
+        # Now load the saved cutoff voltage
         for i in range(self.voltage_combo.count()):
             if abs(float(self.voltage_combo.itemText(i)) - params.cutoff_voltage) < 0.01:
                 self.voltage_combo.setCurrentIndex(i)
@@ -857,20 +879,17 @@ class MainWindow(QMainWindow):
         self.update_battery_weight_style()
         self.chart_title_input.setText(params.chart_title)
 
-        # Load battery type and cell count
-        battery_type_index = self.config.get_battery_type()
-        if 0 <= battery_type_index < self.battery_type_combo.count():
-            self.battery_type_combo.setCurrentIndex(battery_type_index)
-        
-        cell_count_index = self.config.get_cell_count()
-        if 0 <= cell_count_index < self.cell_count_combo.count():
-            self.cell_count_combo.setCurrentIndex(cell_count_index)
+        # Load recovery time
+        recovery_time = self.config.get_recovery_time()
+        self.recovery_time_spin.setValue(recovery_time)
 
         # Apply saved chart theme
         self.apply_chart_theme(self.config.get_dark_chart())
 
         self.update_estimated_time()
         self.update_display_parameters()
+        
+        self._loading_settings = False  # Re-enable saving
     
     def update_estimated_time(self):
         """Update estimated test time display"""
@@ -906,7 +925,6 @@ class MainWindow(QMainWindow):
         self.refresh_btn.setEnabled(not is_connected)  # Disable refresh when connected
         self.start_btn.setEnabled(is_connected and not is_running)
         self.cancel_btn.setEnabled(is_running)
-        self.new_test_btn.setEnabled(is_connected and not is_running)
         
         # Update LED
         if not is_connected:
@@ -988,6 +1006,13 @@ class MainWindow(QMainWindow):
         else:
             # Normal text color
             self.battery_weight_input.setStyleSheet("")
+    
+    def on_recovery_time_changed(self):
+        """Handle recovery time spinbox change"""
+        minutes = self.recovery_time_spin.value()
+        
+        # Save to config
+        self.config.set_recovery_time(minutes)
     
     def on_chart_title_changed(self):
         """Handle chart title input change"""
@@ -1112,8 +1137,9 @@ class MainWindow(QMainWindow):
         
         self.update_effective_cutoff_display()
         
-        # Save battery type selection
-        self.config.set_battery_type(self.battery_type_combo.currentIndex())
+        # Save battery type selection (but not during initialization)
+        if not self._loading_settings:
+            self.config.set_battery_type(self.battery_type_combo.currentIndex())
 
     def on_cell_count_changed(self, auto_set_voltage: bool = True):
         """Switch voltage input between per-cell combo and free-entry spinbox"""
@@ -1127,8 +1153,9 @@ class MainWindow(QMainWindow):
                 self.set_cutoff_voltage_to_recommended()
         self.update_effective_cutoff_display()
         
-        # Save cell count selection
-        self.config.set_cell_count(self.cell_count_combo.currentIndex())
+        # Save cell count selection (but not during initialization)
+        if not self._loading_settings:
+            self.config.set_cell_count(self.cell_count_combo.currentIndex())
 
     def update_effective_cutoff_display(self):
         """Update the live effective cutoff label in the parameters panel and Current Readings panel"""
@@ -1297,7 +1324,8 @@ class MainWindow(QMainWindow):
             sample_interval_sec=1,
             beep_enabled=self.beep_enabled_checkbox.isChecked(),
             battery_weight=self.battery_weight_input.value(),
-            chart_title=self.chart_title_input.text()
+            chart_title=self.chart_title_input.text(),
+            recovery_time_minutes=self.recovery_time_spin.value()
         )
         
         # Validate against maximum current limit
@@ -1329,9 +1357,19 @@ class MainWindow(QMainWindow):
             if reply != QMessageBox.StandardButton.Ok:
                 return
         
-        # Clear previous test data
+        # Clear previous test results and UI
+        self.elapsed_label.setText("--:--:--")
+        self.voltage_label.setText("-------- V")
+        self.current_label.setText("-------- mA")
+        self.capacity_label.setText("-------- mAh")
+        self.voltage_curve.setData([], [])
+        self.current_curve.setData([], [])
+        
+        # Clear previous test data and reset recovery state
         self.test_data = TestData(parameters=params)
         self.test_data.state = TestState.STARTING
+        self.recovery_start_time = None
+        self.recovery_start_elapsed = 0
         
         # Update display panel with test settings
         self.display_battery_type.setText(self.battery_type_combo.currentText())
@@ -1350,6 +1388,11 @@ class MainWindow(QMainWindow):
         # Clear chart
         self.voltage_curve.setData([], [])
         self.current_curve.setData([], [])
+        
+        # Remove recovery marker if it exists
+        if self.recovery_marker is not None:
+            self.chart_widget.removeItem(self.recovery_marker)
+            self.recovery_marker = None
         
         # Initialize X-axis to show 10 minutes (600 seconds)
         self.chart_widget.setXRange(0, 600, padding=0)
@@ -1372,7 +1415,8 @@ class MainWindow(QMainWindow):
             cutoff_voltage=params.cutoff_voltage,
             time_limit_minutes=max_time,
             sample_interval_sec=params.sample_interval_sec,
-            beep_enabled=params.beep_enabled
+            beep_enabled=params.beep_enabled,
+            recovery_time_minutes=params.recovery_time_minutes
         )
         
         if not success:
@@ -1426,35 +1470,7 @@ class MainWindow(QMainWindow):
         
         self.update_ui_state()
     
-    def new_test(self):
-        """Start a new test"""
-        if self.test_data.state == TestState.RUNNING:
-            QMessageBox.warning(self, "Test Running", "Please stop current test first")
-            return
-        
-        # Ask for confirmation
-        from .dialogs import NewTestDialog
-        dialog = NewTestDialog(parent=self)
-        if dialog.exec():
-            # Send cancel/termination message to controller
-            if self.protocol:
-                self.protocol.cancel_test()
-            
-            # Clear displays
-            self.test_data.clear()
-            self.elapsed_label.setText("--:--:--")
-            self.voltage_label.setText("-------- V")
-            self.current_label.setText("-------- mA")
-            self.capacity_label.setText("-------- mAh")
-            self.display_battery_type.setText("---")
-            self.display_current.setText("---")
-            self.display_cutoff.setText("---")
-            self.display_capacity.setText("---")
-            self.display_max_time.setText("---")
-            self.voltage_curve.setData([], [])
-            self.current_curve.setData([], [])
-            self.status_label1.setText("")
-            self.update_ui_state()
+
     
     def on_data_received(self, reading: TestReading):
         """Handle received data from controller"""
@@ -1471,6 +1487,46 @@ class MainWindow(QMainWindow):
             capacity_mah=reading.capacity_mah,
             elapsed_seconds=reading.elapsed_seconds
         )
+        
+        # Check for recovery monitoring transition (current < 10mA during RUNNING)
+        if self.test_data.state == TestState.RUNNING and reading.current_ma < 10.0:
+            # Transition to RECOVERY state
+            self.test_data.state = TestState.RECOVERY
+            self.recovery_start_time = datetime.now()
+            self.recovery_start_elapsed = reading.elapsed_seconds
+            self.status_label3.setText("Recovery monitoring started (load removed)")
+            
+            # Log to message window
+            if hasattr(self, 'message_text'):
+                self.message_text.append(f"RECOVERY: Load removed, monitoring voltage recovery for {self.test_data.parameters.recovery_time_minutes} minutes")
+            
+            # Add vertical marker at recovery start
+            times, _ = self.test_data.get_voltage_series()
+            if times:
+                # Determine if we're in minutes or seconds mode
+                marker_pos = times[-1] / 60.0 if times[-1] > 300 else times[-1]
+                
+                # Create recovery marker line (orange/yellow color, dashed)
+                self.recovery_marker = pg.InfiniteLine(
+                    pos=marker_pos,
+                    angle=90,
+                    pen=pg.mkPen(color='y', width=2, style=Qt.PenStyle.DashLine),
+                    movable=False,
+                    label='Recovery Start',
+                    labelOpts={'position': 0.95, 'color': (255, 165, 0)}
+                )
+                self.chart_widget.addItem(self.recovery_marker)
+        
+        # Check for recovery timeout (transition to COMPLETED)
+        if self.test_data.state == TestState.RECOVERY:
+            recovery_duration_minutes = (reading.elapsed_seconds - self.recovery_start_elapsed) / 60.0
+            
+            if recovery_duration_minutes >= self.test_data.parameters.recovery_time_minutes:
+                # Send cancel command to DL to terminate test
+                if self.protocol:
+                    self.protocol.cancel_test()
+                self.stop_test("Recovery monitoring completed")
+                return  # Don't update displays after stopping
         
         # Update displays
         self.elapsed_label.setText(reading.elapsed_time)
@@ -1521,7 +1577,8 @@ class MainWindow(QMainWindow):
             self.message_text.append(message)
         
         # Check for test completion
-        if any(keyword in message for keyword in ['Finished', 'Exceeded', 'Error', 'Cancelled', 'Cutoff']):
+        # Note: "Cutoff" does NOT stop the test - recovery monitoring continues
+        if any(keyword in message for keyword in ['Finished', 'Exceeded', 'Error', 'Cancelled']):
             self.stop_test(message)
     
     def on_error_occurred(self, error: str):
@@ -1677,9 +1734,12 @@ class MainWindow(QMainWindow):
         self.config.save_test_parameters(self.test_data.parameters)
         self.config.set_battery_type(self.battery_type_combo.currentIndex())
         self.config.set_cell_count(self.cell_count_combo.currentIndex())
-        x, y = self.x(), self.y()
-        width, height = self.width(), self.height()
-        self.config.save_window_geometry(x, y, width, height)
+        
+        # Only save window geometry if not maximized
+        if not self.isMaximized():
+            x, y = self.x(), self.y()
+            width, height = self.width(), self.height()
+            self.config.save_window_geometry(x, y, width, height)
         
         # Stop test if running
         if self.test_data.state == TestState.RUNNING:

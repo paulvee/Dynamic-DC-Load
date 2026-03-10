@@ -14,6 +14,7 @@ class TestState(Enum):
     STARTING = "starting"
     RUNNING = "running"
     PAUSED = "paused"
+    RECOVERY = "recovery"  # Voltage recovery monitoring after cutoff
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     ERROR = "error"
@@ -31,6 +32,7 @@ class TestParameters:
     beep_enabled: bool = False  # Beep on completion
     battery_weight: int = 0  # Battery weight in grams (0 = not tested)
     chart_title: str = ""  # Title for saved chart
+    recovery_time_minutes: int = 5  # Time to monitor voltage recovery after cutoff (1-30 min)
     
     def calculate_max_time_minutes(self) -> int:
         """
@@ -62,6 +64,9 @@ class TestParameters:
         
         if self.sample_interval_sec < 1 or self.sample_interval_sec > 300:
             return False, "Sample interval must be between 1 and 300 seconds"
+        
+        if self.recovery_time_minutes < 1 or self.recovery_time_minutes > 30:
+            return False, "Recovery time must be between 1 and 30 minutes"
         
         return True, None
 

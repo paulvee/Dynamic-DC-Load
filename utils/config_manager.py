@@ -57,6 +57,9 @@ class ConfigManager:
             'MaxCurrent': '2500',             # Maximum discharge current (mA)
             'LastCurrent': '50',              # Last used current setting
             'LastCapacity': '100',            # Last used capacity
+            'RecoveryTime': '5',              # Recovery monitoring time in minutes
+            'BatteryType': '0',               # Battery type index (0=Lithium Ion)
+            'CellCount': '0',                 # Cell count index (0=1S)
             'WindowX': '100',                 # Window position
             'WindowY': '100',
             'WindowWidth': '1200',            # Window size
@@ -93,7 +96,8 @@ class ConfigManager:
             tolerance_percent=self.get_int('Tolerance', 1),
             beep_enabled=self.get_bool('Beep', False),
             battery_weight=self.get_battery_weight(),
-            chart_title=self.get_chart_title()
+            chart_title=self.get_chart_title(),
+            recovery_time_minutes=self.get_recovery_time()
         )
     
     def save_test_parameters(self, params: TestParameters):
@@ -106,6 +110,7 @@ class ConfigManager:
         self.set_value('Beep', params.beep_enabled)
         self.set_battery_weight(params.battery_weight)
         self.set_chart_title(params.chart_title)
+        self.set_recovery_time(params.recovery_time_minutes)
         self.save()
     
     def get_cutoff_voltage(self) -> float:
@@ -250,8 +255,9 @@ class ConfigManager:
     def save_window_geometry(self, x: int, y: int, width: int, height: int):
         """Save window position and size"""
         # Validate position before saving
-        if y < 0:
-            y = 0
+        # Ensure title bar is visible (minimum 30 pixels from top)
+        if y < 30:
+            y = 30
         if x < 0:
             x = 0
         # Ensure reasonable minimum size
@@ -327,4 +333,13 @@ class ConfigManager:
     def set_cell_count(self, count_index: int):
         """Save selected cell count index"""
         self.set_value('CellCount', count_index)
+        self.save()
+
+    def get_recovery_time(self) -> int:
+        """Get recovery monitoring time in minutes (1-30)"""
+        return self.get_int('RecoveryTime', 5)
+
+    def set_recovery_time(self, minutes: int):
+        """Save recovery monitoring time in minutes"""
+        self.set_value('RecoveryTime', minutes)
         self.save()
