@@ -105,7 +105,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.0.g (Python/PyQt6)"
+    VERSION = "v2.0.h (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
@@ -290,7 +290,7 @@ class MainWindow(QMainWindow):
         # Set labels
         plot_widget.setLabel('left', 'Voltage', units='V')
         plot_widget.setLabel('bottom', 'Time', units='seconds')
-        plot_widget.setTitle(f"{self.test_data.parameters.capacity_mah} mAh Lithium Battery Discharge Curve")
+        plot_widget.setTitle("Battery Discharge Curve")
         
         # Create voltage plot (left axis, green)
         self.voltage_curve = plot_widget.plot(
@@ -1183,6 +1183,25 @@ class MainWindow(QMainWindow):
         
         self.update_effective_cutoff_display()
     
+    def _battery_short_name(self) -> str:
+        """Return a short display name for the selected battery type"""
+        name_map = {
+            "LiPo/Li-Ion (3.7v)": "Lithium",
+            "LiHV (3.8v)":        "LiHV",
+            "LiFePO4 (3.2v)":     "LiFePO4",
+            "NiMH (1.2v)":        "NiMH",
+            "NiCd (1.2v)":        "NiCd",
+            "E-Block NiMH (9v)":  "NiMH",
+            "Alkaline (1.5v)":    "Alkaline",
+            "Other":              "Unknown",
+        }
+        return name_map.get(self.battery_type_combo.currentText(), "Battery")
+
+    def _chart_title(self) -> str:
+        """Build the chart title from current capacity and battery type"""
+        capacity = self.test_data.parameters.capacity_mah
+        return f"{capacity} mAh {self._battery_short_name()} Battery Discharge Curve"
+
     def _is_lithium_type(self) -> bool:
         """Return True for lithium battery types that support cell counting"""
         text = self.battery_type_combo.currentText()
@@ -1472,7 +1491,8 @@ class MainWindow(QMainWindow):
         # Initialize X-axis to show 10 minutes (600 seconds)
         self.chart_widget.setXRange(0, 600, padding=0)
         
-        # Set both Y-axes with synchronized ticks so grid lines align
+        # Update chart title and Y-axes for this test
+        self.chart_widget.setTitle(self._chart_title())
         self.sync_axis_ticks()
         
         # Send parameters to controller
