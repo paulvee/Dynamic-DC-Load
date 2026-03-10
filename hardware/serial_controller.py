@@ -80,6 +80,7 @@ class SerialController:
                 self.serial.close()
             
             # Open new connection
+            # Disable DTR/RTS to prevent ESP32 reset on connect/disconnect
             self.serial = serial.Serial(
                 port=self.port,
                 baudrate=self.baud_rate,
@@ -87,8 +88,14 @@ class SerialController:
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
                 timeout=1,
-                write_timeout=1
+                write_timeout=1,
+                dsrdtr=False,  # Disable DTR/DSR hardware flow control
+                rtscts=False   # Disable RTS/CTS hardware flow control
             )
+            
+            # Explicitly set DTR and RTS low to prevent ESP32 reset
+            self.serial.dtr = False
+            self.serial.rts = False
             
             if self.serial.is_open:
                 self.state = ConnectionState.CONNECTED
@@ -114,6 +121,13 @@ class SerialController:
         """
         try:
             if self.serial and self.serial.is_open:
+                # Ensure DTR/RTS stay low before closing to prevent ESP32 reset
+                try:
+                    self.serial.dtr = False
+                    self.serial.rts = False
+                except:
+                    pass  # Ignore errors setting DTR/RTS
+                
                 self.serial.close()
             
             self.state = ConnectionState.DISCONNECTED
