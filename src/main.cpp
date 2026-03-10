@@ -317,6 +317,38 @@ void mainLoop(void* pvParameters) {
         readTemp();
         checkValidValues();
 
+        // Auto-switch to Battery Test mode on serial command
+        // Python app sends "AUTO_BT\n" to trigger automatic mode switch
+        // This doesn't interfere with firmware upload (esptool doesn't send this string)
+        if (Serial.available() && mode != battery) {
+            String cmd = Serial.readStringUntil('\n');
+            cmd.trim();
+            if (cmd == "AUTO_BT") {
+                // Switch to battery test mode
+                Serial.println("Auto-switching to Battery Test mode");
+
+                // Reset to safe values
+                portENTER_CRITICAL(&mutex);
+                encoderPos = 0;
+                DAC = 0;
+                portEXIT_CRITICAL(&mutex);
+                digitalWrite(NFET_OFF, HIGH);
+
+                // Activate battery mode
+                mode = battery;
+                battSetup = true;
+                batteryModeActive = true;
+                vTaskResume(BThandle);
+
+                Serial.print("New mode = ");
+                Serial.println(modeStrings[mode]);
+                empty_avg_pool();
+
+                // Send acknowledgment - DL is ready to receive parameters
+                Serial.println("ACK_BT");
+            }
+        }
+
         // Handle button press events
         if (button.isPressed()) {
             pressedTime = millis();
