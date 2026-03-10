@@ -288,13 +288,13 @@ class MainWindow(QMainWindow):
         plot_widget.showGrid(x=True, y=True, alpha=0.3)
         
         # Set labels
-        plot_widget.setLabel('left', 'Voltage', units='V', color='blue')
+        plot_widget.setLabel('left', 'Voltage', units='V')
         plot_widget.setLabel('bottom', 'Time', units='seconds')
         plot_widget.setTitle(f"{self.test_data.parameters.capacity_mah} mAh Lithium Battery Discharge Curve")
         
-        # Create voltage plot (left axis, blue)
+        # Create voltage plot (left axis, green)
         self.voltage_curve = plot_widget.plot(
-            pen=pg.mkPen(color='b', width=2),
+            pen=pg.mkPen(color='g', width=2),
             name='Voltage'
         )
         
@@ -305,11 +305,11 @@ class MainWindow(QMainWindow):
         self.current_viewbox.setXLink(plot_widget.plotItem)
         self.current_viewbox.invertY(False)  # Ensure Y-axis is not inverted
         self.current_viewbox.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)  # Enable Y-axis auto-scaling
-        plot_widget.setLabel('right', 'Current', units='mA', color='green')
+        plot_widget.setLabel('right', 'Current', units='mA')
         plot_widget.showAxis('right')
         
         self.current_curve = pg.PlotDataItem(
-            pen=pg.mkPen(color='g', width=2),
+            pen=pg.mkPen(color='b', width=2),
             name='Current'
         )
         self.current_viewbox.addItem(self.current_curve)
@@ -1029,11 +1029,15 @@ class MainWindow(QMainWindow):
         if dark:
             bg, axis_color = 'k', (200, 200, 200)
             label_color = (255, 255, 255)  # White for dark background - maximum visibility
+            grid_alpha = 0.5  # Higher alpha for visibility on dark background
         else:
             bg, axis_color = 'w', (0, 0, 0)
             label_color = (0, 150, 0)  # Dark green for white background
+            grid_alpha = 0.3  # Lower alpha for subtle grid on white background
         
         self.chart_widget.setBackground(bg)
+        self.chart_widget.showGrid(x=True, y=True, alpha=grid_alpha)
+        
         for axis in ('left', 'bottom', 'right'):
             ax = self.chart_widget.getAxis(axis)
             ax.setPen(pg.mkPen(color=axis_color))
