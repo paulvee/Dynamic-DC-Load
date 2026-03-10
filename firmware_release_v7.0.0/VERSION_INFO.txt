@@ -1,0 +1,79 @@
+Dynamic Load Firmware - Version 7.0.0
+Build Date: March 8, 2026
+Git Commit: 1adbaa5
+
+RELEASE NOTES
+=============
+
+Major Changes:
+--------------
+✅ Dual-core optimization - ISR core affinity fixes
+✅ Enhanced task priority hierarchy (encoder: Priority 11)
+✅ Increased OLED display stack size (4KB → 8KB)
+✅ Comprehensive thread safety with mutex protection
+✅ Fixed BatteryMode termination message logic
+
+Performance Improvements:
+------------------------
+- ISRs now attach on Core 0 for efficient signaling (eliminates cross-core overhead)
+- Encoder response is now immediate with higher priority
+- Graphics rendering more stable with larger stack buffer
+
+Thread Safety:
+-------------
+- All shared variables protected with portMUX_TYPE mutex
+- Fixed race conditions in ADC reading (dutV, shuntV)
+- Protected display variable copying (dispVoltage, dispCurrent)
+- Safe temperature and power reads across all modules
+
+Bug Fixes:
+----------
+- Battery Mode: Prevented duplicate termination messages
+- Rotary Encoder: Fixed critical section types (ISR vs task)
+- OLED Display: Fixed race conditions in setup and temperature display
+- Main Loop: Complete protection for checkValidValues()
+
+Hardware Support:
+----------------
+- ESP32 DevKit (dual-core Xtensa LX6 @ 240MHz)
+- ADS1115 16-bit ADC (dynamic gain: 0.5-105V range)
+- DAC8571 16-bit DAC (0-10.5A output)
+- SSD1351 128x128 OLED Display
+- Rotary Encoder with ISR processing
+- PWM Fan Control (temperature-based)
+
+Resource Usage:
+--------------
+RAM:   7.2% (23,480 / 327,680 bytes)
+Flash: 25.8% (337,877 / 1,310,720 bytes)
+
+Operating Modes:
+---------------
+- CC: Constant Current
+- CV: Constant Voltage
+- CP: Constant Power
+- CR: Constant Resistance
+- Battery: Discharge test with PC app communication
+
+Communication:
+-------------
+- Serial: 9600 baud
+- Protocol: MSGST...MSGEND format
+- Compatible with Battery Tester Python app
+
+Previous Versions:
+-----------------
+v6.4.26 - Original Arduino sketch (last stable before C++ conversion)
+v7.0.0  - Complete rewrite in C++ with PlatformIO, dual-core optimization
+
+Known Issues:
+------------
+None reported in this release.
+
+Tested On:
+---------
+✅ ESP32 DevKit 38-pin
+✅ Compilation successful
+⏳ Hardware testing pending
+
+For detailed technical documentation, see the main project README.

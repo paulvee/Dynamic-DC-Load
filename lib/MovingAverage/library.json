@@ -1,0 +1,17 @@
+{
+  "name": "MovingAverage",
+  "keywords": "moving-average, filter, average, processing",
+  "description": "Arduino & Mbed Library for averaging fixed-point numbers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pilotak/MovingAverage.git"
+  },
+  "authors": {
+    "name": "Pavel Slama",
+    "email": "info@pavelslama.cz",
+    "url": "https://github.com/pilotak"
+  },
+  "version": "1.2.1",
+  "frameworks": "arduino, mbed",
+  "platforms": "*"
+}

@@ -1,0 +1,60 @@
+╔════════════════════════════════════════════════════════╗
+║  QUICK START - Flash Firmware to ESP32 in 3 Steps    ║
+╚════════════════════════════════════════════════════════╝
+
+STEP 1: Install Python Tools (One-time setup)
+─────────────────────────────────────────────
+Open Command Prompt and run:
+
+    pip install esptool pyserial
+
+(Takes ~30 seconds)
+
+
+STEP 2: Connect ESP32
+──────────────────────
+1. Plug ESP32 into USB port
+2. Check Device Manager → Ports (COM & LPT)
+3. Note COM port (e.g., COM3, COM5, etc.)
+
+
+STEP 3: Flash Firmware
+──────────────────────
+Double-click:  flash_firmware.bat
+
+Enter your COM port when asked, then wait ~30 seconds.
+
+Done! ✓
+
+
+═══════════════════════════════════════════════════════
+
+TROUBLESHOOTING
+───────────────
+
+❌ "esptool not found"
+   → Run: pip install esptool
+
+❌ "Failed to connect"
+   → Hold BOOT button on ESP32 during flash
+   → Try different USB cable
+
+❌ "Access denied"
+   → Close Battery Tester app
+   → Close Arduino IDE
+   → Unplug and replug ESP32
+
+❌ Wrong COM port
+   → Check Device Manager
+   → Look for "CP210x" or "CH340"
+
+═══════════════════════════════════════════════════════
+
+NEED HELP?
+──────────
+1. Read full instructions in README.md
+2. Contact Paul
+
+═══════════════════════════════════════════════════════
+Firmware v7.0.0 | Build: March 8, 2026 | ESP32 DevKit
+═══════════════════════════════════════════════════════
