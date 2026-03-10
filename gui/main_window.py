@@ -104,7 +104,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.0.b (Python/PyQt6)"
+    VERSION = "v2.0.c (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
@@ -1027,17 +1027,28 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'chart_widget'):
             return
         if dark:
-            bg, fg, axis_color = 'k', (200, 200, 200), (200, 200, 200)
+            bg, axis_color = 'k', (200, 200, 200)
+            label_color = (255, 255, 255)  # White for dark background - maximum visibility
         else:
-            bg, fg, axis_color = 'w', (0, 0, 0), (0, 0, 0)
+            bg, axis_color = 'w', (0, 0, 0)
+            label_color = (0, 150, 0)  # Dark green for white background
+        
         self.chart_widget.setBackground(bg)
         for axis in ('left', 'bottom', 'right'):
             ax = self.chart_widget.getAxis(axis)
             ax.setPen(pg.mkPen(color=axis_color))
-            ax.setTextPen(pg.mkPen(color=fg))
-        self.chart_widget.setLabel('left', 'Voltage', units='V', color='blue')
-        self.chart_widget.setLabel('bottom', 'Time', units='seconds', color=fg)
-        self.chart_widget.setLabel('right', 'Current', units='mA', color='green')
+            ax.setTextPen(pg.mkPen(color=axis_color))
+            # Set label color using QColor
+            from PyQt6.QtGui import QColor
+            ax.label.setDefaultTextColor(QColor(*label_color))
+        
+        # Set labels with text
+        self.chart_widget.setLabel('left', 'Voltage', units='V')
+        self.chart_widget.setLabel('bottom', 'Time', units='seconds')
+        self.chart_widget.setLabel('right', 'Current', units='mA')
+        
+        # Force update to ensure axes are visible
+        self.chart_widget.update()
 
     def on_capacity_changed(self):
         """Handle capacity value change"""
@@ -1461,13 +1472,21 @@ class MainWindow(QMainWindow):
         
         # Switch X-axis to minutes after 300 seconds
         if times:
+            # Get the appropriate label color based on current theme
+            from PyQt6.QtGui import QColor
+            label_color = (255, 255, 255) if self.config.get_dark_chart() else (0, 150, 0)
+            
             if times[-1] > 300:
                 plot_times = [t / 60.0 for t in times]
                 self.chart_widget.setLabel('bottom', 'Time', units='minutes')
+                # Reapply label color after setLabel
+                self.chart_widget.getAxis('bottom').label.setDefaultTextColor(QColor(*label_color))
                 x_max = plot_times[-1] if plot_times[-1] > 10 else 10
             else:
                 plot_times = times
                 self.chart_widget.setLabel('bottom', 'Time', units='seconds')
+                # Reapply label color after setLabel
+                self.chart_widget.getAxis('bottom').label.setDefaultTextColor(QColor(*label_color))
                 x_max = 600 if times[-1] <= 600 else times[-1]
             self.voltage_curve.setData(plot_times, voltages)
             if self.graph_current_checkbox.isChecked():
