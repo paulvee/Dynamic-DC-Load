@@ -14,6 +14,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QAction, QIcon, QColor
 import pyqtgraph as pg
 from datetime import datetime
+import math
 from typing import Optional
 
 from hardware import SerialController, ArduinoProtocol, ConnectionState, TestReading
@@ -122,6 +123,7 @@ class MainWindow(QMainWindow):
         self.recovery_start_time: Optional[datetime] = None
         self.recovery_start_elapsed: int = 0  # Elapsed seconds when recovery started
         self.recovery_marker: Optional[pg.InfiniteLine] = None  # Vertical line marker on chart
+        self.current_above_10ma_since: Optional[float] = None  # Elapsed seconds when current first exceeded 10mA
         
         # Initialize UI
         self.init_ui()
@@ -422,6 +424,21 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.effective_cutoff_label, 5, 0)
         self.effective_cutoff_value = QLabel("---")
         layout.addWidget(self.effective_cutoff_value, 5, 1)
+
+        # Max Voltage (shown only in "Enter max voltage" mode — mutually exclusive with effective cutoff)
+        self.max_voltage_label = QLabel("Max Voltage (V):")
+        self.max_voltage_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.max_voltage_label, 5, 0)
+        self.max_voltage_spinbox = QDoubleSpinBox()
+        self.max_voltage_spinbox.setRange(0.1, 200.0)
+        self.max_voltage_spinbox.setDecimals(2)
+        self.max_voltage_spinbox.setSingleStep(0.1)
+        self.max_voltage_spinbox.setValue(5.0)
+        self.max_voltage_spinbox.setToolTip("Maximum voltage of the battery — sets the top of the chart Y-axis.")
+        self.max_voltage_spinbox.valueChanged.connect(self.update_effective_cutoff_display)
+        layout.addWidget(self.max_voltage_spinbox, 5, 1)
+        self.max_voltage_label.setVisible(False)
+        self.max_voltage_spinbox.setVisible(False)
 
         # Battery Weight (grams)
         label = QLabel("Battery Weight (grams):")
@@ -939,6 +956,7 @@ class MainWindow(QMainWindow):
         self.current_spin.setEnabled(not is_running)
         self.voltage_combo.setEnabled(not is_running)
         self.voltage_spinbox.setEnabled(not is_running)
+        self.max_voltage_spinbox.setEnabled(not is_running)
         self.cell_count_combo.setEnabled(not is_running)
         self.capacity_spin.setEnabled(not is_running)
     
@@ -1033,10 +1051,20 @@ class MainWindow(QMainWindow):
         self.chart_widget.getAxis('right').setVisible(show)
         if not show:
             self.current_curve.setData([], [])
+        else:
+            # Repopulate from stored data (needed when test is no longer running)
+            times, _ = self.test_data.get_voltage_series()
+            _, currents = self.test_data.get_current_series()
+            if times and currents:
+                plot_times = [t / 60.0 for t in times] if times[-1] > 300 else times
+                self.current_curve.setData(plot_times, currents)
 
     def on_autorange_voltage_changed(self):
         """Handle Auto Range voltage checkbox change — apply immediately in both directions"""
         if self.autorange_voltage_checkbox.isChecked():
+            # Clear custom ticks so pyqtgraph generates them freely during auto-range
+            self.chart_widget.getAxis('left').setTicks(None)
+            self.chart_widget.getAxis('right').setTicks(None)
             _, voltages = self.test_data.get_voltage_series()
             if voltages:
                 v_min, v_max = min(voltages), max(voltages)
@@ -1044,11 +1072,48 @@ class MainWindow(QMainWindow):
                 margin = span * (0.10 / 0.80)
                 self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
         else:
-            battery_type = self.battery_type_combo.currentText()
-            max_voltage = self.get_battery_max_voltage(battery_type)
-            if self._cell_count_mode_active():
-                max_voltage *= int(self.cell_count_combo.currentText())
-            self.chart_widget.setYRange(0, max_voltage, padding=0)
+            # Restore synchronized ticks and full battery-based range
+            self.chart_widget.getAxis('left').setTicks(None)
+            self.chart_widget.getAxis('right').setTicks(None)
+            self.sync_axis_ticks()
+
+    def _nice_axis_top(self, value: float, n: int = 5) -> float:
+        """Round value up to the nearest nice number giving n integer-valued steps"""
+        raw_step = value / n
+        magnitude = 10 ** math.floor(math.log10(raw_step)) if raw_step > 0 else 1
+        for factor in [1, 2, 5, 10]:
+            step = factor * magnitude
+            if step >= raw_step:
+                return step * n
+        return raw_step * n
+
+    def sync_axis_ticks(self):
+        """Set synchronized ticks on both Y axes so grid lines align"""
+        N = 5
+        battery_type = self.battery_type_combo.currentText()
+        v_max = self.get_battery_max_voltage(battery_type)
+        if self._cell_count_mode_active():
+            v_max *= int(self.cell_count_combo.currentText())
+        i_max = self.test_data.parameters.current_ma * 1.2
+
+        v_top = self._nice_axis_top(v_max, N)
+        i_top = self._nice_axis_top(i_max, N)
+        v_step = v_top / N
+        i_step = i_top / N
+
+        v_major = [(v_step * i, f"{v_step * i:g}") for i in range(N + 1)]
+        i_major = [(i_step * i, f"{i_step * i:g}") for i in range(N + 1)]
+        v_minor = [(v_step * i + v_step / 2, '') for i in range(N)]
+        i_minor = [(i_step * i + i_step / 2, '') for i in range(N)]
+
+        # Reset first, then set range, then apply custom ticks last so a
+        # range-triggered redraw cannot overwrite them
+        self.chart_widget.getAxis('left').setTicks(None)
+        self.chart_widget.getAxis('right').setTicks(None)
+        self.chart_widget.setYRange(0, v_top, padding=0)
+        self.current_viewbox.setYRange(0, i_top, padding=0)
+        self.chart_widget.getAxis('left').setTicks([v_major, v_minor])
+        self.chart_widget.getAxis('right').setTicks([i_major, i_minor])
 
     def on_dark_chart_changed(self):
         """Handle dark chart background checkbox change"""
@@ -1143,14 +1208,19 @@ class MainWindow(QMainWindow):
 
     def on_cell_count_changed(self, auto_set_voltage: bool = True):
         """Switch voltage input between per-cell combo and free-entry spinbox"""
-        if self.cell_count_combo.currentText() == "Enter max voltage":
-            self.voltage_input_stack.setCurrentIndex(1)  # show spinbox
+        enter_max_mode = self.cell_count_combo.currentText() == "Enter max voltage"
+        if enter_max_mode:
+            self.voltage_input_stack.setCurrentIndex(1)  # show cutoff spinbox
         else:
             self.voltage_input_stack.setCurrentIndex(0)  # show combo
             self.populate_voltage_combo(per_cell=True)
-            # Auto-set to recommended cutoff voltage for this battery type (if requested)
             if auto_set_voltage:
                 self.set_cutoff_voltage_to_recommended()
+
+        # Show max voltage entry only in "Enter max voltage" mode
+        self.max_voltage_label.setVisible(enter_max_mode)
+        self.max_voltage_spinbox.setVisible(enter_max_mode)
+
         self.update_effective_cutoff_display()
         
         # Save cell count selection (but not during initialization)
@@ -1185,12 +1255,14 @@ class MainWindow(QMainWindow):
         """Populate the Current Readings panel with current setup values"""
         if not hasattr(self, 'display_battery_type'):
             return
-        params = self.test_data.parameters
+        # Read directly from UI widgets so changes in Setup are reflected immediately
+        current_ma = self.current_spin.value()
+        capacity_mah = self.capacity_spin.value()
         self.display_battery_type.setText(self.battery_type_combo.currentText())
-        self.display_current.setText(f"{params.current_ma}")
+        self.display_current.setText(f"{current_ma}")
         self.update_effective_cutoff_display()
-        self.display_capacity.setText(f"{params.capacity_mah}")
-        max_time = params.calculate_max_time_minutes()
+        self.display_capacity.setText(f"{capacity_mah}")
+        max_time = (capacity_mah / current_ma * 60) if current_ma > 0 else 0
         hours = int(max_time // 60)
         minutes = int(max_time % 60)
         self.display_max_time.setText(f"{hours} hr : {minutes} min")
@@ -1263,6 +1335,8 @@ class MainWindow(QMainWindow):
 
     def get_battery_max_voltage(self, battery_type: str) -> float:
         """Get maximum voltage for battery type with 10% padding"""
+        if not self._cell_count_mode_active():
+            return self.max_voltage_spinbox.value()
         voltage_map = {
             "LiPo/Li-Ion (3.7v)": 4.2 * 1.1,      # 4.62V
             "LiHV (3.8v)": 4.2 * 1.1,      # 4.62V
@@ -1370,6 +1444,7 @@ class MainWindow(QMainWindow):
         self.test_data.state = TestState.STARTING
         self.recovery_start_time = None
         self.recovery_start_elapsed = 0
+        self.current_above_10ma_since = None
         
         # Update display panel with test settings
         self.display_battery_type.setText(self.battery_type_combo.currentText())
@@ -1397,16 +1472,8 @@ class MainWindow(QMainWindow):
         # Initialize X-axis to show 10 minutes (600 seconds)
         self.chart_widget.setXRange(0, 600, padding=0)
         
-        # Set voltage Y-axis to fixed range based on battery type with 10% padding
-        battery_type = self.battery_type_combo.currentText()
-        max_voltage = self.get_battery_max_voltage(battery_type)
-        if self._cell_count_mode_active():
-            max_voltage *= int(self.cell_count_combo.currentText())
-        self.chart_widget.setYRange(0, max_voltage, padding=0)
-        
-        # Set current Y-axis to fixed range based on set current value with 20% padding
-        max_current = params.current_ma * 1.2
-        self.current_viewbox.setYRange(0, max_current, padding=0)
+        # Set both Y-axes with synchronized ticks so grid lines align
+        self.sync_axis_ticks()
         
         # Send parameters to controller
         max_time = params.calculate_max_time_minutes()
@@ -1488,8 +1555,24 @@ class MainWindow(QMainWindow):
             elapsed_seconds=reading.elapsed_seconds
         )
         
+        # Track when current first exceeds 10mA (used to gate recovery entry)
+        if self.test_data.state == TestState.RUNNING:
+            if reading.current_ma >= 10.0:
+                if self.current_above_10ma_since is None:
+                    self.current_above_10ma_since = reading.elapsed_seconds
+
+        # Determine whether recovery entry is allowed:
+        #   - Current has been above 10mA for at least 5 seconds, OR
+        #   - Voltage has dropped below cutoff (even within the first 5 seconds)
+        current_qualified = (
+            self.current_above_10ma_since is not None and
+            (reading.elapsed_seconds - self.current_above_10ma_since) >= 5.0
+        )
+        below_cutoff = reading.voltage <= self.test_data.parameters.cutoff_voltage
+        recovery_allowed = current_qualified or below_cutoff
+
         # Check for recovery monitoring transition (current < 10mA during RUNNING)
-        if self.test_data.state == TestState.RUNNING and reading.current_ma < 10.0:
+        if self.test_data.state == TestState.RUNNING and reading.current_ma < 10.0 and recovery_allowed:
             # Transition to RECOVERY state
             self.test_data.state = TestState.RECOVERY
             self.recovery_start_time = datetime.now()
