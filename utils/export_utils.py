@@ -140,8 +140,33 @@ class ExportManager:
             return False, None  # User cancelled
         
         try:
+            # Save current theme
+            import pyqtgraph as pg
+            original_bg = chart_widget.backgroundBrush().color()
+            original_axis_pens = {}
+            original_text_pens = {}
+            
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                original_axis_pens[axis_name] = ax.pen()
+                original_text_pens[axis_name] = ax.textPen()
+            
+            # Temporarily apply white background
+            chart_widget.setBackground('w')
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(pg.mkPen(color=(0, 0, 0)))
+                ax.setTextPen(pg.mkPen(color=(0, 0, 0)))
+            
             # Grab the chart widget as pixmap
             pixmap = chart_widget.grab()
+            
+            # Restore original theme
+            chart_widget.setBackground(original_bg)
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(original_axis_pens[axis_name])
+                ax.setTextPen(original_text_pens[axis_name])
             
             # Create painter to add metadata overlay
             painter = QPainter(pixmap)
@@ -244,8 +269,33 @@ class ExportManager:
             if dialog.exec() != QPrintDialog.DialogCode.Accepted:
                 return False, None  # User cancelled
             
-            # Grab chart as pixmap first
+            # Save current theme
+            import pyqtgraph as pg
+            original_bg = chart_widget.backgroundBrush().color()
+            original_axis_pens = {}
+            original_text_pens = {}
+            
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                original_axis_pens[axis_name] = ax.pen()
+                original_text_pens[axis_name] = ax.textPen()
+            
+            # Temporarily apply white background
+            chart_widget.setBackground('w')
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(pg.mkPen(color=(0, 0, 0)))
+                ax.setTextPen(pg.mkPen(color=(0, 0, 0)))
+            
+            # Grab chart as pixmap
             chart_pixmap = chart_widget.grab()
+            
+            # Restore original theme
+            chart_widget.setBackground(original_bg)
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(original_axis_pens[axis_name])
+                ax.setTextPen(original_text_pens[axis_name])
             
             # Create a new pixmap with metadata overlay
             pixmap_with_metadata = QPixmap(chart_pixmap.size())
@@ -350,7 +400,7 @@ class ExportManager:
     @staticmethod
     def copy_chart_to_clipboard(chart_widget, parent=None) -> Tuple[bool, Optional[str]]:
         """
-        Copy chart to system clipboard
+        Copy chart to system clipboard with white background
         
         Args:
             chart_widget: The pyqtgraph PlotWidget to copy
@@ -361,9 +411,34 @@ class ExportManager:
         """
         try:
             from PyQt6.QtWidgets import QApplication
+            import pyqtgraph as pg
+            
+            # Save current theme
+            original_bg = chart_widget.backgroundBrush().color()
+            original_axis_pens = {}
+            original_text_pens = {}
+            
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                original_axis_pens[axis_name] = ax.pen()
+                original_text_pens[axis_name] = ax.textPen()
+            
+            # Temporarily apply white background
+            chart_widget.setBackground('w')
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(pg.mkPen(color=(0, 0, 0)))
+                ax.setTextPen(pg.mkPen(color=(0, 0, 0)))
             
             # Grab chart as pixmap
             pixmap = chart_widget.grab()
+            
+            # Restore original theme
+            chart_widget.setBackground(original_bg)
+            for axis_name in ('left', 'bottom', 'right'):
+                ax = chart_widget.getAxis(axis_name)
+                ax.setPen(original_axis_pens[axis_name])
+                ax.setTextPen(original_text_pens[axis_name])
             
             # Copy to clipboard
             clipboard = QApplication.clipboard()
