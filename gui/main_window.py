@@ -857,6 +857,15 @@ class MainWindow(QMainWindow):
         self.update_battery_weight_style()
         self.chart_title_input.setText(params.chart_title)
 
+        # Load battery type and cell count
+        battery_type_index = self.config.get_battery_type()
+        if 0 <= battery_type_index < self.battery_type_combo.count():
+            self.battery_type_combo.setCurrentIndex(battery_type_index)
+        
+        cell_count_index = self.config.get_cell_count()
+        if 0 <= cell_count_index < self.cell_count_combo.count():
+            self.cell_count_combo.setCurrentIndex(cell_count_index)
+
         # Apply saved chart theme
         self.apply_chart_theme(self.config.get_dark_chart())
 
@@ -1102,6 +1111,9 @@ class MainWindow(QMainWindow):
         self.set_cutoff_voltage_to_recommended()
         
         self.update_effective_cutoff_display()
+        
+        # Save battery type selection
+        self.config.set_battery_type(self.battery_type_combo.currentIndex())
 
     def on_cell_count_changed(self, auto_set_voltage: bool = True):
         """Switch voltage input between per-cell combo and free-entry spinbox"""
@@ -1114,6 +1126,9 @@ class MainWindow(QMainWindow):
             if auto_set_voltage:
                 self.set_cutoff_voltage_to_recommended()
         self.update_effective_cutoff_display()
+        
+        # Save cell count selection
+        self.config.set_cell_count(self.cell_count_combo.currentIndex())
 
     def update_effective_cutoff_display(self):
         """Update the live effective cutoff label in the parameters panel and Current Readings panel"""
@@ -1660,6 +1675,8 @@ class MainWindow(QMainWindow):
         """Handle window close event"""
         # Save settings
         self.config.save_test_parameters(self.test_data.parameters)
+        self.config.set_battery_type(self.battery_type_combo.currentIndex())
+        self.config.set_cell_count(self.cell_count_combo.currentIndex())
         x, y = self.x(), self.y()
         width, height = self.width(), self.height()
         self.config.save_window_geometry(x, y, width, height)

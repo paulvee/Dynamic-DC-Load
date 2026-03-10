@@ -310,3 +310,21 @@ class ConfigManager:
         """Save dark chart background setting"""
         self.set_value('DarkChart', enabled)
         self.save()
+
+    def get_battery_type(self) -> int:
+        """Get last selected battery type index (0=Lithium Ion, 1=NiMH, etc)"""
+        return self.get_int('BatteryType', 0)
+
+    def set_battery_type(self, type_index: int):
+        """Save selected battery type index"""
+        self.set_value('BatteryType', type_index)
+        self.save()
+
+    def get_cell_count(self) -> int:
+        """Get last selected cell count index (0=1S, 1=2S, etc)"""
+        return self.get_int('CellCount', 0)
+
+    def set_cell_count(self, count_index: int):
+        """Save selected cell count index"""
+        self.set_value('CellCount', count_index)
+        self.save()
