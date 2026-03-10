@@ -104,7 +104,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.0.d (Python/PyQt6)"
+    VERSION = "v2.0.e (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
