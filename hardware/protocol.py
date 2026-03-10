@@ -247,6 +247,33 @@ class ArduinoProtocol:
             self.clear_buffer()
             time.sleep(0.2)  # Give controller time to be ready
             
+            # Send auto-mode switch command to DL
+            # This triggers automatic switch to Battery Test mode (firmware v7.0.2+)
+            # Firmware upload isn't affected (esptool doesn't send this command)
+            # Backward compatible: older firmware versions will ignore this command
+            self.serial.write("AUTO_BT\n".encode())
+            
+            # Wait for acknowledgment from DL (timeout 1 second)
+            # DL sends "ACK_BT" when it's ready to receive parameters
+            # If no ACK (older firmware), continue anyway - user must switch mode manually
+            ack_timeout = 1.0
+            start_time = time.time()
+            ack_received = False
+            
+            while (time.time() - start_time) < ack_timeout:
+                if self.serial.in_waiting > 0:
+                    response = self.serial.readline().decode('ascii', errors='ignore').strip()
+                    if response == "ACK_BT":
+                        ack_received = True
+                        break
+                time.sleep(0.01)  # Small delay to avoid busy waiting
+            
+            if not ack_received:
+                # Older firmware doesn't support auto-mode switch
+                # Log warning but continue - user must manually set Battery Test mode
+                print("Warning: DL firmware doesn't support auto-mode switch (no ACK_BT)")
+                print("Please manually switch to Battery Test mode on the DL")
+            
             self.serial.write(f"{current_ma}\n".encode())
             time.sleep(0.15)
             
