@@ -95,6 +95,26 @@ git checkout feature/your-feature-name
 git merge main
 ```
 
+## Version Numbering
+
+**IMPORTANT:** Before committing and pushing changes, update the version number:
+
+1. Open `gui/main_window.py`
+2. Find the `VERSION` constant (around line 107):
+   ```python
+   VERSION = "v2.0.a (Python/PyQt6)"
+   ```
+3. Increment the letter: `a` → `b` → `c` → `d`, etc.
+   - Current version: `v2.0.a`
+   - Next version: `v2.0.b`
+   - After that: `v2.0.c`
+4. Save the file and include it in your commit
+
+**Version Scheme:**
+- Format: `v2.0.x` where `x` is a letter (a, b, c, d, ...)
+- Increment the letter for each push to main
+- The letter will reset to `a` when we do a minor version bump (e.g., v2.1.a)
+
 ## Communication Best Practices
 
 - **Commit messages:** Be descriptive
@@ -114,7 +134,7 @@ git merge main
 ## Project Structure
 
 ```
-battery_tester_python/
+Batt Tester/
 ├── gui/                    # User interface (PyQt6)
 ├── hardware/              # Serial communication & protocol
 ├── core/                  # Business logic & data models
