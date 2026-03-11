@@ -1844,12 +1844,13 @@ class MainWindow(QMainWindow):
             width, height = self.width(), self.height()
             self.config.save_window_geometry(x, y, width, height)
         
-        # Stop test if running
-        if self.test_data.state == TestState.RUNNING:
+        # Stop test if running or in recovery
+        if self.test_data.state in [TestState.RUNNING, TestState.RECOVERY]:
+            state_text = "recovery monitoring" if self.test_data.state == TestState.RECOVERY else "running"
             reply = QMessageBox.question(
                 self,
-                "Test Running",
-                "A test is currently running. Exit anyway?",
+                "Test Active",
+                f"A test is currently {state_text}. Exit anyway?\n\nThis will send an abort command to the DL.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply != QMessageBox.StandardButton.Yes:
