@@ -15,6 +15,7 @@ from PyQt6.QtGui import QAction, QIcon, QColor
 import pyqtgraph as pg
 from datetime import datetime
 import math
+import time
 from typing import Optional
 
 from hardware import SerialController, ArduinoProtocol, ConnectionState, TestReading
@@ -70,10 +71,13 @@ class SerialWorker(QThread):
         self.controller = controller
         self.protocol = protocol
         self.running = False
+        self.last_heartbeat_time = 0
+        self.heartbeat_interval = 30  # 30 seconds
     
     def run(self):
         """Read data from serial port in background"""
         self.running = True
+        self.last_heartbeat_time = time.time()
         
         while self.running:
             if not self.controller.is_connected():
@@ -90,6 +94,13 @@ class SerialWorker(QThread):
                     elif packet_type in ['voltage', 'current', 'capacity', 'time']:
                         # Handle legacy separate packets if needed
                         pass
+                
+                # Send periodic heartbeat to DL (communication watchdog)
+                # This proves the PC app is still alive and connected
+                current_time = time.time()
+                if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
+                    self.protocol.send_heartbeat()
+                    self.last_heartbeat_time = current_time
                         
             except Exception as e:
                 self.error_occurred.emit(str(e))

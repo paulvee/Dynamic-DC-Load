@@ -341,6 +341,22 @@ class ArduinoProtocol:
             print(f"Error resetting controller: {e}")
             return False
     
+    def send_heartbeat(self) -> bool:
+        """
+        Send heartbeat signal to DL (communication watchdog).
+        
+        Sent periodically (every 30s) during test to prove PC app is alive.
+        DL firmware aborts test if no heartbeat received for 60 seconds.
+        
+        Returns True if successful, False otherwise.
+        """
+        try:
+            self.serial.write("HB\n".encode())
+            return True
+        except serial.SerialException as e:
+            # Silently fail - heartbeat is optional, don't spam console
+            return False
+    
     def clear_buffer(self):
         """Clear internal parsing buffer"""
         self.buffer = b''
