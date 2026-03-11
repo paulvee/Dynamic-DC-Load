@@ -1,138 +1,292 @@
-# Next Steps for Dynamic Load C++ Conversion
+# Next Steps - Dynamic DC Load Firmware
 
-## Project Status
+**Current Version:** 7.0.3 (Released: March 11, 2026)  
+**Status:** ✅ Fully functional and tested
 
-✅ **Completed:**
-- PlatformIO project structure created
-- Configuration header with all pin definitions and calibration constants
-- Main program structure with RTOS tasks
-- Header files for all modules
-- platformio.ini configured for ESP32
-- README.md with project documentation
+---
 
-⏳ **To Complete:**
-- Copy MovingAverage library
-- Implement function bodies from original .ino files
-- Test and debug
+## Project Status Update
 
-## Immediate Actions
+### ✅ Completed (v7.0.1 - v7.0.3)
 
-### 1. Copy the MovingAverage Library
+**v7.0.1 - PlatformIO Migration:**
+- ✅ Complete PlatformIO project structure
+- ✅ All code converted from Arduino IDE to modular C++
+- ✅ MovingAverage library integrated
+- ✅ Recovery monitoring with configurable timeout (1-30 minutes)
+- ✅ Filtered cutoff detection using 16-sample moving average
+- ✅ All modules fully implemented and tested
+- ✅ Comprehensive documentation (README.md)
 
-The MovingAverage library is not in PlatformIO's registry. Copy it from your Arduino libraries:
+**v7.0.2 - UX Enhancement:**
+- ✅ Auto mode switch (AUTO_BT/ACK_BT protocol)
+- ✅ Seamless integration with Python app
+- ✅ Backward compatibility maintained
+
+**v7.0.3 - Safety Features:**
+- ✅ 60-second communication watchdog
+- ✅ Heartbeat protocol (30-second intervals)
+- ✅ Automatic test abort on disconnect
+- ✅ Enhanced safety for unattended operation
+
+**Documentation:**
+- ✅ CHANGELOG.md - Complete version history
+- ✅ TEST_PLAN.md - 30-test comprehensive test plan
+- ✅ PDF generation script for documentation
+- ✅ All documentation pushed to GitHub
+
+---
+
+## Immediate Next Steps
+
+### 1. Testing (Priority: HIGH)
+
+Execute the comprehensive test plan:
 
 ```powershell
-Copy-Item "C:\Users\pwver\Documents\Arduino\libraries\MovingAverage" -Destination "C:\Users\pwver\Documents\Arduino\Dynamic_Load_FW\lib\MovingAverage" -Recurse
+# Open test plan
+code TEST_PLAN.md
 ```
 
-### 2. Open Project in VSCode
+**Critical tests to perform:**
+- [ ] Test 5.2: Communication timeout - cable disconnect
+- [ ] Test 5.3: Communication timeout - app crash simulation
+- [ ] Test 4.2: Auto mode switch functionality
+- [ ] Test 6.1: Complete battery test with all features
+- [ ] Test 2.1-2.3: Recovery monitoring accuracy
 
-```powershell
-cd "C:\Users\pwver\Documents\Arduino\Dynamic_Load_FW"
-code .
-```
+**Goal:** Verify all features work correctly before declaring v7.0.3 stable.
 
-### 3. Install PlatformIO Extension (if not installed)
+### 2. Bug Fixes (if needed)
 
-1. Open VSCode
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "PlatformIO IDE"
-4. Click Install
-5. Restart VSCode
+After testing, address any issues discovered:
+- Document bugs in GitHub issues
+- Create fix branches
+- Test fixes thoroughly
+- Update to v7.0.4 if critical fixes needed
 
-### 4. Build the Project
+### 3. Release Preparation
 
-- Click the checkmark (✓) icon at the bottom of VSCode, or
-- Press Ctrl+Alt+B, or  
-- Run: `pio run`
+Once testing is complete:
+- [ ] Mark all tests as PASS in TEST_PLAN.md
+- [ ] Update NEXT_STEPS.md with results
+- [ ] Create GitHub release for v7.0.3
+- [ ] Tag release in git: `git tag -a v7.0.3 -m "Release v7.0.3"`
+- [ ] Push tag: `git push origin v7.0.3`
 
-This will download all required libraries and attempt to build.
+---
 
-## Code Conversion Strategy
+## Future Enhancements (Roadmap)
 
-I've created a framework with all the structure in place. Here's how to complete the conversion:
+### v7.1.0 - Data Logging & Analysis
+**Priority:** Medium
 
-### Option A: I can help you convert the code
+- [ ] **SD card logging** - Log test data locally to SD card
+  - Timestamp, voltage, current, power, capacity
+  - CSV format for Excel import
+  - Automatic file rotation by date
+  
+- [ ] **Enhanced recovery data** - Log voltage recovery curve
+  - Sample voltage every second during recovery
+  - Export recovery characteristics
+  
+- [ ] **Statistics** - Calculate and display:
+  - Average discharge voltage
+  - Peak power
+  - Energy (Wh) delivered
+  - Battery internal resistance estimate
 
-I can systematically convert each .ino file to proper C++ modules:
-1. **BatteryMode.cpp** - Battery test logic
-2. **FanController.cpp** - Fan control and PWM
-3. **OLEDDisplay.cpp** - Display updates and graphics
-4. **RotaryEncoder.cpp** - Encoder ISR and processing
-5. **DynamicLoad.cpp** - Main measurement and control logic
+### v7.2.0 - Advanced Battery Testing
+**Priority:** Medium
 
-Let me know if you want me to continue with the conversion!
+- [ ] **Multi-stage discharge** - Support complex test profiles
+  - Different currents at different voltage ranges
+  - Pulse discharge testing
+  - Variable load testing
+  
+- [ ] **Temperature compensation** - Adjust cutoff based on temperature
+  - Read battery temperature (requires hardware mod)
+  - Temperature-dependent cutoff voltage
+  
+- [ ] **Battery chemistry presets** - One-click test configs
+  - Li-ion (3.0V cutoff)
+  - NiMH (0.9V cutoff)
+  - LiFePO4 (2.5V cutoff)
+  - Custom presets
 
-### Option B: Manual conversion
+### v7.3.0 - Connectivity & Remote Control
+**Priority:** Low
 
-If you prefer to do it yourself:
+- [ ] **WiFi web interface** - Control via browser
+  - Start/stop tests remotely
+  - View real-time data
+  - Download test results
+  
+- [ ] **MQTT support** - Integration with home automation
+  - Publish test status
+  - Remote monitoring
+  - Notifications on test completion
+  
+- [ ] **Bluetooth** - Direct smartphone control
+  - Mobile app development
+  - Standalone operation without PC
 
-1. **For each .ino file:**
-   - Copy functions to corresponding .cpp file
-   - Add `#include` statements for the matching .h file
-   - Move global variables to main.cpp or keep them in the module
-   - Update function signatures to match headers
+### v7.4.0 - Hardware Enhancements
+**Priority:** Low (requires hardware changes)
 
-2. **Key differences from Arduino IDE:**
-   - No automatic function prototypes - use headers
-   - Proper namespacing with includes
-   - Clear separation of interface (.h) and implementation (.cpp)
+- [ ] **Dual channel** - Test two batteries simultaneously
+- [ ] **Auto-ranging** - Automatic current range selection
+- [ ] **Higher power** - Support for higher wattage testing
+- [ ] **Battery holder clips** - Quick connection system
 
-3. **Testing strategy:**
-   - Start with simple modules (FanController, RotaryEncoder)
-   - Build frequently to catch errors early
-   - Test on hardware incrementally
+---
 
-## Module Conversion Priority
+## Known Issues / Limitations
 
-Suggested order:
+### Current Limitations:
+1. **Recovery timeout maximum:** 30 minutes (by design)
+2. **Heartbeat dependency:** Python app must send HB every 30s
+3. **No local data storage:** All data handled by Python app
+4. **Single channel:** One battery at a time
+5. **Manual mode selection:** Auto-switch only works with Python app
 
-1. **RotaryEncoder** - Input handling (simplest)
-2. **FanController** - Independent functionality  
-3. **OLEDDisplay** - Visual feedback
-4. **DynamicLoad core functions** - Measurement and control
-5. **BatteryMode** - Complex but isolated
+### Non-Critical Issues:
+- None currently reported
 
-## Current Build Status
+### Won't Fix:
+- Arduino IDE compatibility - Project is PlatformIO only
+- Legacy serial protocol - Current protocol is stable
 
-The project will build but won't be functional yet because:
-- Function bodies are stubs (TODO comments)
-- MovingAverage library needs to be added
-- Core logic not yet implemented
+---
 
-## Questions?
+## Testing Results (To Be Completed)
 
-Let me know:
-- Should I continue converting the modules?
-- Do you want to do it manually?
-- Are there specific modules you want me to focus on first?
+**Test Date:** _______________  
+**Tester:** _______________  
+**Hardware Revision:** _______________
 
-## Useful PlatformIO Commands
+| Test Suite | Status | Notes |
+|-----------|--------|-------|
+| Basic Functionality | ⬜ | |
+| Recovery Monitoring | ⬜ | |
+| Filtered Cutoff | ⬜ | |
+| Auto Mode Switch | ⬜ | |
+| Comm Watchdog | ⬜ | |
+| Integration | ⬜ | |
+| Backward Compat | ⬜ | |
+| Edge Cases | ⬜ | |
+| Performance | ⬜ | |
+
+**Overall Result:** ⬜ PASS / ⬜ FAIL / ⬜ PARTIAL
+
+**Critical Issues Found:** _______________
+
+---
+
+## Development Commands
+
+### Building and Uploading
 
 ```bash
-# Build
+# Build project
 pio run
 
 # Upload to ESP32
 pio run --target upload
 
-# Clean build
-pio run --target clean
-
 # Monitor serial output
 pio device monitor
 
-# Build + Upload + Monitor
+# Build + Upload + Monitor (all-in-one)
 pio run --target upload && pio device monitor
+
+# Clean build files
+pio run --target clean
 ```
 
-## Tips
+### Git Workflow
 
-1. **IntelliSense**: You now have full C++ IntelliSense in VSCode!
-2. **Debugging**: PlatformIO supports debugging with proper hardware
-3. **Libraries**: All managed automatically - no manual installation
-4. **Multiple environments**: Can define different build configs in platformio.ini
+```bash
+# Create feature branch
+git checkout -b feature/new-feature-name
+
+# Commit changes
+git add .
+git commit -m "feat: Description of new feature"
+
+# Push feature branch
+git push origin feature/new-feature-name
+
+# Merge to master (after testing)
+git checkout master
+git merge feature/new-feature-name
+git push origin master
+```
+
+### Documentation
+
+```bash
+# Generate PDFs for distribution
+python convert_docs_to_pdf.py
+
+# Update changelog for new version
+# Edit CHANGELOG.md manually
+```
 
 ---
 
-**Ready to continue?** Let me know if you want me to convert the remaining code!
+## Community & Support
+
+**GitHub Repository:** https://github.com/paulvee/DL-Firmware-for-VSC
+
+**Collaborators:** Bud and others testing the hardware
+
+**Documentation:**
+- README.md - Project overview and setup
+- CHANGELOG.md - Version history
+- TEST_PLAN.md - Testing procedures
+- PRINT_IMPLEMENTATION.md - (if exists)
+
+---
+
+## Version Numbering Scheme
+
+**Format:** MAJOR.MINOR.PATCH
+
+- **MAJOR (7.x.x):** Breaking changes, major rewrites
+- **MINOR (x.X.x):** New features, non-breaking changes
+- **PATCH (x.x.X):** Bug fixes, minor improvements
+
+**Current:** 7.0.3  
+**Next planned:** 7.0.4 (bug fixes) or 7.1.0 (new features)
+
+---
+
+## Notes for Developers
+
+### Code Quality Standards:
+- ✅ Use meaningful variable names
+- ✅ Comment complex logic
+- ✅ Update header file when changing interfaces
+- ✅ Test on hardware before committing
+- ✅ Update CHANGELOG.md for every release
+- ✅ Follow existing code style
+
+### Safety Considerations:
+- Always test watchdog functionality
+- Verify load shuts down on errors
+- Test over-current and over-voltage protection
+- Consider battery chemistry limits
+- Document safe operating ranges
+
+### Before Every Release:
+1. Update version in `include/Config.h`
+2. Update CHANGELOG.md
+3. Run full test plan
+4. Test with both old and new Python app versions
+5. Commit, push, and tag release
+
+---
+
+**Last Updated:** March 11, 2026  
+**Next Review:** After v7.0.3 testing is complete
