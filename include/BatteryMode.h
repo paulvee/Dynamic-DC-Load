@@ -36,6 +36,10 @@ extern int cancel;
 extern bool in_recovery_mode;
 extern unsigned long recovery_start_millis;
 
+// Communication watchdog
+extern volatile unsigned long lastSerialActivity;
+extern const unsigned long COMM_WATCHDOG_TIMEOUT;
+
 // Timing variables
 extern unsigned long startMillisec;
 extern unsigned long millis_PC_wait;

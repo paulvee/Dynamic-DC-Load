@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.1
+ * @version 7.0.3
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.
@@ -132,6 +132,10 @@ int recovery_time_minutes = 5;
 int cancel = 0;
 bool in_recovery_mode = false;
 unsigned long recovery_start_millis = 0;
+
+// Communication watchdog - safety feature to abort test if PC disconnects
+volatile unsigned long lastSerialActivity = 0;
+const unsigned long COMM_WATCHDOG_TIMEOUT = 60000;  // 60 seconds in milliseconds
 
 // RTOS
 TaskHandle_t BThandle = NULL;
@@ -324,6 +328,9 @@ void mainLoop(void* pvParameters) {
             String cmd = Serial.readStringUntil('\n');
             cmd.trim();
             if (cmd == "AUTO_BT") {
+                // Update communication watchdog
+                lastSerialActivity = millis();
+
                 // Switch to battery test mode
                 Serial.println("Auto-switching to Battery Test mode");
 

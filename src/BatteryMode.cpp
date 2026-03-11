@@ -100,6 +100,9 @@ void batteryMode(void* pvParameters) {
             // Receive parameters if available
             if (appPresence && battSetup && batteryModeActive) {
                 if (Serial.available() > 0) {
+                    // Update communication watchdog - received test parameters
+                    lastSerialActivity = millis();
+
                     target_mA = Serial.parseInt();
                     cutoff_voltage = Serial.parseFloat();
                     time_limit = Serial.parseInt();
@@ -213,10 +216,38 @@ void batteryMode(void* pvParameters) {
                 end_of_test = true;
             }
 
-            // Check for manual cancellation
+            // Check communication watchdog (60 second timeout)
+            // Aborts test if PC app disconnects or crashes
+            if ((!end_of_test) && (millis() - lastSerialActivity > COMM_WATCHDOG_TIMEOUT)) {
+                stop_oled_vars = true;
+                Serial.print("MSGSTComm Timeout - PC DisconnectedMSGEND");
+                termination_message_sent = true;
+                Serial.flush();
+
+                tft.fillScreen(BLACK);
+                tft.setTextColor(WHITE);
+                tft.setCursor(digit_1, line_2);
+                tft.print("Battery Test");
+                tft.setCursor(digit_1, line_4);
+                tft.print("Comm Timeout");
+                tft.setCursor(digit_1, line_5);
+                tft.print("PC Disconnected");
+                vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+                end_of_test = true;
+            }
+
+            // Check for manual cancellation or heartbeat
             if (Serial.available() > 0) {
-                cancel = Serial.parseInt();
-                if (cancel == 999) {
+                // Update communication watchdog - received data from PC (cancel or heartbeat)
+                lastSerialActivity = millis();
+
+                // Read incoming data - could be cancel (999) or heartbeat ("HB")
+                String cmd = Serial.readStringUntil('\n');
+                cmd.trim();
+
+                // Check for cancel command
+                if (cmd == "999" || cmd.toInt() == 999) {
                     stop_oled_vars = true;
                     Serial.print("MSGSTUser cancelledMSGEND");
                     termination_message_sent = true;
@@ -232,6 +263,7 @@ void batteryMode(void* pvParameters) {
 
                     end_of_test = true;
                 }
+                // Silently ignore heartbeat ("HB") and other commands
             }
 
             // Update PC app with data
