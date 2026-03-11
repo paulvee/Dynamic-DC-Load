@@ -53,8 +53,8 @@ class TestParameters:
         Returns:
             (is_valid, error_message)
         """
-        if self.current_ma < 5 or self.current_ma > 1500:
-            return False, "Current must be between 5 and 1500 mA"
+        if self.current_ma < 5 or self.current_ma > 8000:
+            return False, "Current must be between 5 and 8000 mA"
         
         if self.cutoff_voltage < 0 or self.cutoff_voltage > 20:
             return False, "Cutoff voltage must be between 0 and 20 V"

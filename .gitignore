@@ -76,6 +76,9 @@ Battery_Tester_README.pdf
 Thumbs.db
 desktop.ini
 
+# Local utility scripts
+sync.bat
+
 # Temporary files
 *.tmp
 *.swp
