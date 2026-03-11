@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QComboBox, QSpinBox, QDoubleSpinBox, QStackedWidget,
     QStatusBar, QGroupBox, QMessageBox, QFileDialog, QMenuBar, QMenu,
-    QToolBar, QSizePolicy, QTabWidget, QTextEdit, QStyledItemDelegate, QApplication, QCheckBox
+    QToolBar, QSizePolicy, QTabWidget, QTextEdit, QStyledItemDelegate, QApplication, QCheckBox,
+    QAbstractSpinBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QAction, QIcon, QColor
@@ -376,15 +377,16 @@ class MainWindow(QMainWindow):
         # Connect battery type change AFTER cell_count_combo exists
         self.battery_type_combo.currentIndexChanged.connect(self.on_battery_type_changed)
 
-        # Load current (mA)
-        label = QLabel("Load current (mA):")
+        # Discharge current (mA)
+        label = QLabel("Discharge current (mA):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 2, 0)
         self.current_spin = QSpinBox()
-        max_current = self.config.get_max_current()
-        self.current_spin.setRange(5, max_current)
+        self.current_spin.setRange(5, 10000)  # Allow typing up to 10A, validate later
         self.current_spin.setValue(self.test_data.parameters.current_ma)
         self.current_spin.setToolTip("Discharge current")
+        self.current_spin.setCorrectionMode(QAbstractSpinBox.CorrectionMode.CorrectToNearestValue)
+        self.current_spin.setKeyboardTracking(False)  # Only validate when editing complete
         self.current_spin.valueChanged.connect(self.on_current_changed)
         layout.addWidget(self.current_spin, 2, 1)
 
@@ -447,6 +449,7 @@ class MainWindow(QMainWindow):
         self.max_voltage_spinbox.setValue(5.0)
         self.max_voltage_spinbox.setToolTip("Maximum voltage of the battery — sets the top of the chart Y-axis.")
         self.max_voltage_spinbox.valueChanged.connect(self.update_effective_cutoff_display)
+        self.max_voltage_spinbox.valueChanged.connect(self.update_current_limits)
         layout.addWidget(self.max_voltage_spinbox, 5, 1)
         self.max_voltage_label.setVisible(False)
         self.max_voltage_spinbox.setVisible(False)
@@ -483,7 +486,7 @@ class MainWindow(QMainWindow):
         
         self.time_label = QLabel("--:--")
         self.time_label.setStyleSheet("font-weight: normal;")
-        self.time_label.setToolTip("Auto-calculated discharge time (Rated Capacity ÷ Load Current)")
+        self.time_label.setToolTip("Auto-calculated discharge time (Rated Capacity ÷ Discharge Current)")
         time_layout.addWidget(self.time_label)
         
         from PyQt6.QtWidgets import QLineEdit
@@ -491,7 +494,7 @@ class MainWindow(QMainWindow):
         self.time_input.setPlaceholderText("Override HH:MM")
         self.time_input.setMaximumWidth(130)
         self.time_input.setToolTip(
-            "Calculated from rated capacity ÷ load current.\n"
+            "Calculated from rated capacity ÷ discharge current.\n"
             "Leave empty to use calculated time, or enter HH:MM to override."
         )
         time_layout.addWidget(self.time_input)
@@ -538,13 +541,15 @@ class MainWindow(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 0, 0)
         self.max_current_spin = QSpinBox()
-        self.max_current_spin.setRange(100, 5000)
+        self.max_current_spin.setRange(100, 8000)  # Initial range, updated by voltage-based limits
         self.max_current_spin.setSingleStep(100)
         self.max_current_spin.setValue(self.config.get_max_current())
         self.max_current_spin.setToolTip(
             "Maximum current that can be sent to the controller.\n"
-            "This limits the 'Load current' field for safety."
+            "Hardware limits: 8A below 40V total, 4A above 40V total.\n"
+            "This limits the 'Discharge current' field for safety."
         )
+        self.max_current_spin.setCorrectionMode(QAbstractSpinBox.CorrectionMode.CorrectToNearestValue)
         self.max_current_spin.valueChanged.connect(self.on_max_current_changed)
         layout.addWidget(self.max_current_spin, 0, 1)
 
@@ -655,7 +660,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.display_battery_type, row, 4)
         
         row += 1
-        layout.addWidget(QLabel("Load current (mA):"), row, 3)
+        layout.addWidget(QLabel("Discharge current (mA):"), row, 3)
         self.display_current = QLabel("---")
         layout.addWidget(self.display_current, row, 4)
         
@@ -918,6 +923,9 @@ class MainWindow(QMainWindow):
         self.update_display_parameters()
         
         self._loading_settings = False  # Re-enable saving
+        
+        # Apply current limits based on loaded battery configuration
+        self.update_current_limits()
     
     def update_estimated_time(self):
         """Update estimated test time display"""
@@ -982,6 +990,31 @@ class MainWindow(QMainWindow):
     
     def on_current_changed(self):
         """Handle current value change"""
+        # Validate against voltage-based hardware limits
+        battery_type = self.battery_type_combo.currentText()
+        if self._cell_count_mode_active():
+            max_voltage_per_cell = self.get_battery_max_voltage(battery_type)
+            cell_count = int(self.cell_count_combo.currentText())
+            total_voltage = max_voltage_per_cell * cell_count
+        elif self.cell_count_combo.currentText() == "Enter max voltage":
+            total_voltage = self.max_voltage_spinbox.value()
+        else:
+            total_voltage = 50.0
+        
+        hardware_max = 8000 if total_voltage < 40.0 else 4000
+        current_value = self.current_spin.value()
+        
+        # Clamp to hardware limit if exceeded
+        if current_value > hardware_max:
+            self.current_spin.blockSignals(True)  # Prevent recursion
+            self.current_spin.setValue(hardware_max)
+            self.current_spin.blockSignals(False)
+            # Show brief message if value was clamped
+            self.statusBar().showMessage(
+                f"Current limited to {hardware_max}mA for {total_voltage:.1f}V battery", 
+                3000
+            )
+        
         self.update_estimated_time()
         # Adjust increment based on value
         value = self.current_spin.value()
@@ -1001,13 +1034,8 @@ class MainWindow(QMainWindow):
         # Save to config
         self.config.set_max_current(max_current)
         
-        # Update the Load current spinbox range
-        current_value = self.current_spin.value()
-        self.current_spin.setRange(5, max_current)
-        
-        # If current value exceeds new max, clamp it
-        if current_value > max_current:
-            self.current_spin.setValue(max_current)
+        # Validate against voltage-based hardware limits
+        self.update_current_limits()
     
     def on_beep_enabled_changed(self):
         """Handle beep enabled checkbox change"""
@@ -1232,6 +1260,9 @@ class MainWindow(QMainWindow):
         
         self.update_effective_cutoff_display()
         
+        # Update current limits based on battery voltage
+        self.update_current_limits()
+        
         # Save battery type selection (but not during initialization)
         if not self._loading_settings:
             self.config.set_battery_type(self.battery_type_combo.currentIndex())
@@ -1252,6 +1283,9 @@ class MainWindow(QMainWindow):
         self.max_voltage_spinbox.setVisible(enter_max_mode)
 
         self.update_effective_cutoff_display()
+        
+        # Update current limits based on cell count
+        self.update_current_limits()
         
         # Save cell count selection (but not during initialization)
         if not self._loading_settings:
@@ -1341,6 +1375,51 @@ class MainWindow(QMainWindow):
         (not 'Enter max voltage').
         """
         return self.cell_count_combo.currentText() != "Enter max voltage"
+    
+    def update_current_limits(self):
+        """Update current limits based on total battery voltage.
+        
+        Hardware limits:
+        - Below 40V: max 8A (8000mA)
+        - Above 40V: max 4A (4000mA)
+        """
+        # Calculate total voltage
+        battery_type = self.battery_type_combo.currentText()
+        
+        if self._cell_count_mode_active():
+            # Per-cell mode: max voltage per cell × cell count
+            max_voltage_per_cell = self.get_battery_max_voltage(battery_type)
+            cell_count = int(self.cell_count_combo.currentText())
+            total_voltage = max_voltage_per_cell * cell_count
+        elif self.cell_count_combo.currentText() == "Enter max voltage":
+            # Free-entry mode: use max voltage spinbox
+            total_voltage = self.max_voltage_spinbox.value()
+        else:
+            # Shouldn't happen, but default to safe limit
+            total_voltage = 50.0
+        
+        # Determine current limit based on voltage
+        if total_voltage < 40.0:
+            max_current = 8000  # 8A
+            limit_text = "Max 8A (below 40V total)"
+        else:
+            max_current = 4000  # 4A
+            limit_text = "Max 4A (above 40V total)"
+        
+        # Update tooltip to show current limit
+        self.current_spin.setToolTip(f"Discharge current - {limit_text}")
+        
+        # Validate current value and clamp if needed
+        current_value = self.current_spin.value()
+        if current_value > max_current:
+            self.current_spin.setValue(max_current)
+        
+        # Update max current spinbox in Setup dialog (if it exists)
+        if hasattr(self, 'max_current_spin'):
+            max_current_value = self.max_current_spin.value()
+            self.max_current_spin.setRange(100, max_current)
+            if max_current_value > max_current:
+                self.max_current_spin.setValue(max_current)
 
     def get_effective_cutoff_voltage(self) -> float:
         """Return the cutoff voltage to send to the hardware.
@@ -1440,6 +1519,29 @@ class MainWindow(QMainWindow):
                 "Current Limit Exceeded",
                 f"The requested current ({params.current_ma} mA) exceeds the maximum limit ({max_current} mA).\n\n"
                 f"Please reduce the current or adjust the limit in File → Setup."
+            )
+            return
+        
+        # Validate against voltage-based hardware limits
+        battery_type = self.battery_type_combo.currentText()
+        if self._cell_count_mode_active():
+            max_voltage_per_cell = self.get_battery_max_voltage(battery_type)
+            cell_count = int(self.cell_count_combo.currentText())
+            total_voltage = max_voltage_per_cell * cell_count
+        elif self.cell_count_combo.currentText() == "Enter max voltage":
+            total_voltage = self.max_voltage_spinbox.value()
+        else:
+            total_voltage = 50.0
+        
+        hardware_max = 8000 if total_voltage < 40.0 else 4000
+        if params.current_ma > hardware_max:
+            QMessageBox.warning(
+                self,
+                "Hardware Limit Exceeded",
+                f"The requested current ({params.current_ma} mA) exceeds the hardware limit "
+                f"({hardware_max} mA for {total_voltage:.1f}V total).\n\n"
+                f"Hardware limits: 8A below 40V total, 4A above 40V total.\n\n"
+                f"Please reduce the current."
             )
             return
         
