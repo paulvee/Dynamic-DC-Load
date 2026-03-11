@@ -270,7 +270,10 @@ class ArduinoProtocol:
             
             if not ack_received:
                 # Older firmware doesn't support auto-mode switch
-                # Log warning but continue - user must manually set Battery Test mode
+                # Clear buffer to remove unprocessed AUTO_BT command before sending parameters
+                # (old firmware would read AUTO_BT as first parameter, corrupting the test setup)
+                self.clear_buffer()
+                time.sleep(0.1)
                 print("Warning: DL firmware doesn't support auto-mode switch (no ACK_BT)")
                 print("Please manually switch to Battery Test mode on the DL")
             
