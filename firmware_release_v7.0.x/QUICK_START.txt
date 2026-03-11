@@ -56,5 +56,5 @@ NEED HELP?
 2. Contact Paul
 
 ═══════════════════════════════════════════════════════
-Firmware v7.0.0 | Build: March 8, 2026 | ESP32 DevKit
+Firmware v7.0.3 | Build: March 11, 2026 | ESP32 DevKit
 ═══════════════════════════════════════════════════════

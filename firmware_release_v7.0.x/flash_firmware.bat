@@ -1,6 +1,6 @@
 @echo off
 echo ============================================
-echo Dynamic Load Firmware v7.0.0 Flash Tool
+echo Dynamic Load Firmware v7.0.3 Flash Tool
 echo ============================================
 echo.
 echo This script will flash the firmware to your ESP32.
@@ -24,7 +24,7 @@ python -m esptool --chip esp32 --port %COM_PORT% --baud 460800 write_flash -z 0x
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ============================================
-    echo SUCCESS! Firmware v7.0.0 flashed successfully.
+    echo SUCCESS! Firmware v7.0.3 flashed successfully.
     echo ============================================
     echo.
     echo You can now disconnect and reconnect your ESP32.

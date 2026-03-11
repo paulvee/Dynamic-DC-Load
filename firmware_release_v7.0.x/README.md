@@ -1,14 +1,30 @@
-# Dynamic Load Firmware v7.0.0 - Installation Guide
+# Dynamic Load Firmware v7.0.3 - Installation Guide
 
 This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load controller.
 
-## What's New in v7.0.0
+## What's New in v7.0.x Series
+
+### v7.0.3 (March 11, 2026) - Safety Enhanced
+- ✅ **60-second communication watchdog** - Auto-abort test if PC disconnects
+- ✅ **Heartbeat protocol** - Python app sends HB command every 30 seconds
+- ✅ **Enhanced safety** - Prevents runaway discharge on PC crash/disconnect
+- ✅ **Automatic timeout detection** - Displays "Comm Timeout - PC Disconnected"
+
+### v7.0.2 (March 10, 2026) - UX Enhanced
+- ✅ **Auto mode switch** - Firmware switches to Battery Test mode automatically
+- ✅ **AUTO_BT/ACK_BT protocol** - Seamless operation with Python app
+- ✅ **Backward compatible** - Works with old and new Python app versions
+
+### v7.0.1 (March 10, 2026) - Feature Complete
+- ✅ **Recovery monitoring** - Configurable 1-30 minute recovery timeout
+- ✅ **Filtered cutoff detection** - 16-sample moving average prevents false triggers
+- ✅ **PlatformIO migration** - Modern development environment
+- ✅ **Complete C++ conversion** - All modules implemented and tested
+
+### v7.0.0 (March 8, 2026) - Base Release
 - Dual-core optimizations for improved performance
 - ISR core affinity fixes for efficient encoder response
-- Increased process_encoder task priority for immediate response
 - Enhanced thread safety with comprehensive mutex protection
-- Optimized OLED display task with larger stack
-- Fixed BatteryMode termination message logic
 
 ## Prerequisites
 
