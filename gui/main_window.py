@@ -1153,6 +1153,9 @@ class MainWindow(QMainWindow):
         # Save to config
         self.config.set_chart_title(title)
 
+        # Keep test_data in sync so save_chart picks up changes made after test ends
+        self.test_data.parameters.chart_title = title
+
     def on_tab_changed(self, index: int):
         """Update display parameters when switching to the Graph tab"""
         if index == 0:  # Graph tab
@@ -1746,11 +1749,20 @@ class MainWindow(QMainWindow):
         self.test_data.state = TestState.COMPLETED
         self.test_data.completion_message = reason
         self.status_label1.setText(f"Test completed: {reason}")
-        
+
+        # Rescale X-axis to fit actual test duration
+        times, _ = self.test_data.get_voltage_series()
+        if times:
+            if times[-1] > 300:
+                x_max = times[-1] / 60.0
+            else:
+                x_max = times[-1]
+            self.chart_widget.setXRange(0, x_max, padding=0.02)
+
         # Beep to alert user of test completion (if enabled)
         if self.test_data.parameters.beep_enabled:
             QApplication.beep()
-        
+
         self.update_ui_state()
     
 
@@ -1842,6 +1854,10 @@ class MainWindow(QMainWindow):
             v_min, v_max = min(voltages), max(voltages)
             span = v_max - v_min if v_max != v_min else 1.0
             margin = span * (0.10 / 0.80)  # 80% of window = data span → 10% margins each side
+            # Clear custom ticks so pyqtgraph auto-generates labels for the narrowed range.
+            # Without this, full-scale custom ticks from sync_axis_ticks() fall outside the
+            # auto-range window and appear as missing labels.
+            self.chart_widget.getAxis('left').setTicks(None)
             self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
         
         # Switch X-axis to minutes after 300 seconds
