@@ -233,8 +233,7 @@ class MainWindow(QMainWindow):
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
         
-        copy_action = QAction("&Copy", self)
-        copy_action.setShortcut("Ctrl+C")
+        copy_action = QAction("&Copy Chart", self)
         copy_action.triggered.connect(self.copy_chart)
         edit_menu.addAction(copy_action)
         

@@ -134,8 +134,19 @@ class ArduinoProtocol:
         """
         packets = []
         
+        # Prevent buffer bloat: limit to 8KB (should never need this much for valid data)
+        MAX_BUFFER_SIZE = 8192
+        if len(self.buffer) > MAX_BUFFER_SIZE:
+            # Keep only the most recent data
+            self.buffer = self.buffer[-MAX_BUFFER_SIZE:]
+        
         # Check for combined v3.04 format packet (most common)
         if self.VOLTAGE_START in self.buffer and self.VOLTAGE_END in self.buffer:
+            # Remove any junk data before the packet start marker to prevent buffer bloat
+            junk_end = self.buffer.find(self.VOLTAGE_START)
+            if junk_end > 0:
+                self.buffer = self.buffer[junk_end:]
+            
             start_idx = self.buffer.find(self.VOLTAGE_START) + len(self.VOLTAGE_START)
             end_idx = self.buffer.find(self.VOLTAGE_END)
             
@@ -198,6 +209,28 @@ class ArduinoProtocol:
                 value = self.buffer[start_idx:end_idx].decode('ascii', errors='ignore')
                 packets.append(('message', value))
                 self.buffer = self.buffer[end_idx + len(self.MSG_END):]
+        
+        # Clean up leading junk that doesn't match any packet start marker
+        # This prevents buffer bloat from HB acknowledgments and other garbage
+        if len(self.buffer) > 0:
+            # Find the earliest occurrence of any packet start marker
+            all_markers = [
+                self.VOLTAGE_START, self.CURRENT_START, self.TIME_START,
+                self.MAH_START, self.MSG_START
+            ]
+            earliest_pos = len(self.buffer)  # Default: no markers found
+            
+            for marker in all_markers:
+                pos = self.buffer.find(marker)
+                if pos != -1 and pos < earliest_pos:
+                    earliest_pos = pos
+            
+            # If we have junk before the first marker, remove it
+            if earliest_pos > 0:
+                self.buffer = self.buffer[earliest_pos:]
+            # If no markers found and buffer is getting large, keep only recent 100 bytes
+            elif earliest_pos == len(self.buffer) and len(self.buffer) > 100:
+                self.buffer = self.buffer[-100:]
         
         return packets
     
