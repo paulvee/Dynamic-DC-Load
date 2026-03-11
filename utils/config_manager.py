@@ -343,3 +343,21 @@ class ConfigManager:
         """Save recovery monitoring time in minutes"""
         self.set_value('RecoveryTime', minutes)
         self.save()
+
+    def get_verbose_logging(self) -> bool:
+        """Get verbose serial logging setting"""
+        return self.get_bool('VerboseLogging', False)
+
+    def set_verbose_logging(self, enabled: bool):
+        """Save verbose serial logging setting"""
+        self.set_value('VerboseLogging', enabled)
+        self.save()
+    
+    def get_auto_bt_enabled(self) -> bool:
+        """Get AUTO_BT command setting (requires firmware v7.0+)"""
+        return self.get_bool('AutoBTEnabled', False)
+
+    def set_auto_bt_enabled(self, enabled: bool):
+        """Save AUTO_BT command setting"""
+        self.set_value('AutoBTEnabled', enabled)
+        self.save()

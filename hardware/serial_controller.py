@@ -81,19 +81,26 @@ class SerialController:
             
             # Open new connection
             # Disable DTR/RTS to prevent ESP32 reset on connect/disconnect
-            self.serial = serial.Serial(
-                port=self.port,
-                baudrate=self.baud_rate,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=1,
-                write_timeout=1,
-                dsrdtr=False,  # Disable DTR/DSR hardware flow control
-                rtscts=False   # Disable RTS/CTS hardware flow control
-            )
+            # Note: Set DTR/RTS False immediately to minimize reset risk on Windows
+            self.serial = serial.Serial()
+            self.serial.port = self.port
+            self.serial.baudrate = self.baud_rate
+            self.serial.bytesize = serial.EIGHTBITS
+            self.serial.parity = serial.PARITY_NONE
+            self.serial.stopbits = serial.STOPBITS_ONE
+            self.serial.timeout = 1
+            self.serial.write_timeout = 1
+            self.serial.dsrdtr = False  # Disable DTR/DSR hardware flow control
+            self.serial.rtscts = False  # Disable RTS/CTS hardware flow control
             
-            # Explicitly set DTR and RTS low to prevent ESP32 reset
+            # Set DTR and RTS low BEFORE opening port
+            self.serial.dtr = False
+            self.serial.rts = False
+            
+            # Now open the port with DTR/RTS already configured
+            self.serial.open()
+            
+            # Re-assert DTR and RTS are low after opening (belt and suspenders)
             self.serial.dtr = False
             self.serial.rts = False
             

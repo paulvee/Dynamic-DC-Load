@@ -93,10 +93,11 @@ class ArduinoProtocol:
     MSG_START = b'MSGST'
     MSG_END = b'MSGEND'
     
-    def __init__(self, serial_port: serial.Serial):
+    def __init__(self, serial_port: serial.Serial, log_callback=None):
         self.serial = serial_port
         self.buffer = b''
         self.last_reading: Optional[TestReading] = None
+        self.log_callback = log_callback  # Optional callback for logging serial traffic
         
     def parse_combined_packet(self, data: str) -> Optional[TestReading]:
         """
@@ -221,7 +222,8 @@ class ArduinoProtocol:
         loop_delay: int = 0,
         tolerance: int = 1,
         beep_enabled: bool = False,
-        recovery_time_minutes: int = 5
+        recovery_time_minutes: int = 5,
+        auto_bt_enabled: bool = False
     ) -> bool:
         """
         Send test parameters to ESP32.
@@ -243,66 +245,93 @@ class ArduinoProtocol:
         Returns True if successful, False otherwise.
         """
         try:
-            # Clear any pending data in buffers to ensure clean start
+            # Clear any pending data in PC's receive buffer to ensure clean start
             self.clear_buffer()
             time.sleep(0.2)  # Give controller time to be ready
             
-            # Send auto-mode switch command to DL
+            # Send auto-mode switch command to DL (only if enabled in settings)
             # This triggers automatic switch to Battery Test mode (firmware v7.0.2+)
-            # Firmware upload isn't affected (esptool doesn't send this command)
-            # Backward compatible: older firmware versions will ignore this command
-            self.serial.write("AUTO_BT\n".encode())
+            # For old firmware (v6.x and earlier), disable this to avoid parameter corruption
+            if auto_bt_enabled:
+                if self.log_callback:
+                    self.log_callback("TX:\t\tAUTO_BT", is_verbose=False)  # Always log important commands
+                self.serial.write("AUTO_BT\n".encode())
+                
+                # Wait for acknowledgment from DL (timeout 1 second)
+                # DL sends "ACK_BT" when it's ready to receive parameters
+                ack_timeout = 1.0
+                start_time = time.time()
+                ack_received = False
+                
+                while (time.time() - start_time) < ack_timeout:
+                    if self.serial.in_waiting > 0:
+                        response = self.serial.readline().decode('ascii', errors='ignore').strip()
+                        if response == "ACK_BT":
+                            if self.log_callback:
+                                self.log_callback("RX: ACK_BT", is_verbose=False)  # Always log important responses
+                            ack_received = True
+                            break
+                    time.sleep(0.01)  # Small delay to avoid busy waiting
+                
+                if not ack_received:
+                    # No ACK received - firmware doesn't support AUTO_BT
+                    # Clear buffer to remove unprocessed AUTO_BT command before sending parameters
+                    self.clear_buffer()
+                    time.sleep(0.1)
+                    if self.log_callback:
+                        self.log_callback("Warning: No ACK_BT received (old firmware?)", is_verbose=False)
+                    print("Warning: DL firmware doesn't support auto-mode switch (no ACK_BT)")
+                    print("Please manually switch to Battery Test mode on the DL")
+            else:
+                # AUTO_BT disabled - user must manually switch DL to Battery Test mode
+                if self.log_callback:
+                    self.log_callback("AUTO_BT disabled - ensure DL is in Battery Test mode", is_verbose=False)
             
-            # Wait for acknowledgment from DL (timeout 1 second)
-            # DL sends "ACK_BT" when it's ready to receive parameters
-            # If no ACK (older firmware), continue anyway - user must switch mode manually
-            ack_timeout = 1.0
-            start_time = time.time()
-            ack_received = False
-            
-            while (time.time() - start_time) < ack_timeout:
-                if self.serial.in_waiting > 0:
-                    response = self.serial.readline().decode('ascii', errors='ignore').strip()
-                    if response == "ACK_BT":
-                        ack_received = True
-                        break
-                time.sleep(0.01)  # Small delay to avoid busy waiting
-            
-            if not ack_received:
-                # Older firmware doesn't support auto-mode switch
-                # Clear buffer to remove unprocessed AUTO_BT command before sending parameters
-                # (old firmware would read AUTO_BT as first parameter, corrupting the test setup)
-                self.clear_buffer()
-                time.sleep(0.1)
-                print("Warning: DL firmware doesn't support auto-mode switch (no ACK_BT)")
-                print("Please manually switch to Battery Test mode on the DL")
-            
+            # Send parameters (log in verbose mode only)
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tCurrent={current_ma}mA", is_verbose=True)
             self.serial.write(f"{current_ma}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tCutoff={cutoff_voltage:.2f}V", is_verbose=True)
             self.serial.write(f"{cutoff_voltage:.2f}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tTimeLimit={time_limit_minutes}min", is_verbose=True)
             self.serial.write(f"{time_limit_minutes}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tSampleInterval={sample_interval_sec}s", is_verbose=True)
             self.serial.write(f"{sample_interval_sec}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tLoopDelay={loop_delay}", is_verbose=True)
             self.serial.write(f"{loop_delay}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tTolerance={tolerance}", is_verbose=True)
             self.serial.write(f"{tolerance}\n".encode())
             time.sleep(0.15)
             
             beep_flag = '1' if beep_enabled else '0'
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tBeep={beep_flag}", is_verbose=True)
             self.serial.write(f"{beep_flag}\n".encode())
             time.sleep(0.15)
             
+            if self.log_callback:
+                self.log_callback(f"TX:\t\tRecoveryTime={recovery_time_minutes}min", is_verbose=True)
             self.serial.write(f"{recovery_time_minutes}\n".encode())
             time.sleep(0.15)
             
             # Start test (0 = start, 999 = cancel)
+            if self.log_callback:
+                self.log_callback("TX:\t\tStart=0", is_verbose=True)
             self.serial.write("0\n".encode())
             
             return True
@@ -317,6 +346,8 @@ class ArduinoProtocol:
         Returns True if successful, False otherwise.
         """
         try:
+            if self.log_callback:
+                self.log_callback("TX:\t\tCancel=999", is_verbose=False)  # Always log cancel command
             self.serial.write("999\n".encode())
             time.sleep(0.3)  # Give controller time to process cancel command
             self.clear_buffer()  # Clear any pending data
@@ -351,6 +382,8 @@ class ArduinoProtocol:
         Returns True if successful, False otherwise.
         """
         try:
+            if self.log_callback:
+                self.log_callback("TX:\t\tHB", is_verbose=True)  # Only log in verbose mode
             self.serial.write("HB\n".encode())
             return True
         except serial.SerialException as e:

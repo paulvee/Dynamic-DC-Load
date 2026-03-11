@@ -74,11 +74,12 @@ class SerialWorker(QThread):
         self.running = False
         self.last_heartbeat_time = 0
         self.heartbeat_interval = 30  # 30 seconds
+        self.heartbeat_enabled = False  # Only enable after test starts
     
     def run(self):
         """Read data from serial port in background"""
         self.running = True
-        self.last_heartbeat_time = time.time()
+        # Don't initialize heartbeat timer yet - wait until test starts
         
         while self.running:
             if not self.controller.is_connected():
@@ -98,10 +99,12 @@ class SerialWorker(QThread):
                 
                 # Send periodic heartbeat to DL (communication watchdog)
                 # This proves the PC app is still alive and connected
-                current_time = time.time()
-                if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
-                    self.protocol.send_heartbeat()
-                    self.last_heartbeat_time = current_time
+                # Only send if heartbeat is enabled (test is running)
+                if self.heartbeat_enabled:
+                    current_time = time.time()
+                    if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
+                        self.protocol.send_heartbeat()
+                        self.last_heartbeat_time = current_time
                         
             except Exception as e:
                 self.error_occurred.emit(str(e))
@@ -112,6 +115,12 @@ class SerialWorker(QThread):
     def stop(self):
         """Stop the worker thread"""
         self.running = False
+        self.heartbeat_enabled = False  # Disable heartbeat when stopping
+    
+    def start_heartbeat(self):
+        """Start sending heartbeats (called after test parameters are sent)"""
+        self.heartbeat_enabled = True
+        self.last_heartbeat_time = time.time()
 
 
 class MainWindow(QMainWindow):
@@ -571,10 +580,45 @@ class MainWindow(QMainWindow):
         # Add spacing after beep checkbox
         layout.setRowMinimumHeight(1, 50)
 
+        # Verbose serial logging checkbox
+        label = QLabel("Enable Verbose Serial Logging:")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 2, 0)
+        self.verbose_logging_checkbox = QCheckBox()
+        self.verbose_logging_checkbox.setChecked(self.config.get_verbose_logging())
+        self.verbose_logging_checkbox.setToolTip(
+            "Enable verbose serial protocol logging.\n"
+            "When checked: logs all commands, parameters, heartbeats, and data packets.\n"
+            "When unchecked: logs only important status messages and commands."
+        )
+        self.verbose_logging_checkbox.stateChanged.connect(self.on_verbose_logging_changed)
+        layout.addWidget(self.verbose_logging_checkbox, 2, 1)
+
+        # Add spacing after verbose logging checkbox
+        layout.setRowMinimumHeight(2, 50)
+
+        # AUTO_BT command checkbox (requires firmware v7.0+)
+        label = QLabel("Enable AUTO_BT Command (FW v7.0+):")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(label, 3, 0)
+        self.auto_bt_checkbox = QCheckBox()
+        self.auto_bt_checkbox.setChecked(self.config.get_auto_bt_enabled())
+        self.auto_bt_checkbox.setToolTip(
+            "Enable AUTO_BT command for automatic mode switching (requires firmware v7.0+).\n"
+            "When checked: PC automatically switches DL to Battery Test mode.\n"
+            "When unchecked: You must manually switch DL to BT mode before starting test.\n"
+            "Leave UNCHECKED for old firmware (v6.x and earlier) to avoid parameter corruption."
+        )
+        self.auto_bt_checkbox.stateChanged.connect(self.on_auto_bt_changed)
+        layout.addWidget(self.auto_bt_checkbox, 3, 1)
+
+        # Add spacing after AUTO_BT checkbox
+        layout.setRowMinimumHeight(3, 50)
+
         # Chart title
         label = QLabel("Chart Title:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 2, 0)
+        layout.addWidget(label, 4, 0)
         from PyQt6.QtWidgets import QLineEdit
         self.chart_title_input = QLineEdit()
         self.chart_title_input.setPlaceholderText("Enter a title for saved/printed charts (optional)")
@@ -582,25 +626,28 @@ class MainWindow(QMainWindow):
             "Optional title added to saved/printed chart images."
         )
         self.chart_title_input.textChanged.connect(self.on_chart_title_changed)
-        layout.addWidget(self.chart_title_input, 2, 1)
+        layout.addWidget(self.chart_title_input, 4, 1)
+
+        # Add spacing after chart title
+        layout.setRowMinimumHeight(4, 50)
 
         # Dark chart background checkbox
         label = QLabel("Dark Chart Background:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 3, 0)
+        layout.addWidget(label, 5, 0)
         self.dark_chart_checkbox = QCheckBox()
         self.dark_chart_checkbox.setChecked(self.config.get_dark_chart())
         self.dark_chart_checkbox.setToolTip(
             "Use a dark background for the discharge chart."
         )
         self.dark_chart_checkbox.stateChanged.connect(self.on_dark_chart_changed)
-        layout.addWidget(self.dark_chart_checkbox, 3, 1)
+        layout.addWidget(self.dark_chart_checkbox, 5, 1)
 
         # Add spacing after dark chart checkbox
-        layout.setRowMinimumHeight(3, 50)
+        layout.setRowMinimumHeight(5, 50)
 
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(4, 1)
+        layout.setRowStretch(6, 1)
 
         group.setLayout(layout)
         return group
@@ -1037,6 +1084,35 @@ class MainWindow(QMainWindow):
         # Validate against voltage-based hardware limits
         self.update_current_limits()
     
+    def on_verbose_logging_changed(self):
+        """Handle verbose logging checkbox change"""
+        verbose_logging = self.verbose_logging_checkbox.isChecked()
+        
+        # Save to config
+        self.config.set_verbose_logging(verbose_logging)
+    
+    def on_auto_bt_changed(self):
+        """Handle AUTO_BT checkbox change"""
+        auto_bt_enabled = self.auto_bt_checkbox.isChecked()
+        
+        # Save to config
+        self.config.set_auto_bt_enabled(auto_bt_enabled)
+    
+    def log_serial(self, message: str, is_verbose: bool = False):
+        """Log serial communication to Controller Message window
+        
+        Args:
+            message: The message to log
+            is_verbose: If True, only log when verbose mode is enabled
+        """
+        if hasattr(self, 'message_text'):
+            # Check verbose setting
+            verbose_enabled = self.config.get_verbose_logging()
+            
+            # Log if not verbose-only, or if verbose mode is enabled
+            if not is_verbose or verbose_enabled:
+                self.message_text.append(message)
+
     def on_beep_enabled_changed(self):
         """Handle beep enabled checkbox change"""
         beep_enabled = self.beep_enabled_checkbox.isChecked()
@@ -1346,7 +1422,7 @@ class MainWindow(QMainWindow):
             return
         
         if self.controller.connect(port):
-            self.protocol = ArduinoProtocol(self.controller.serial)
+            self.protocol = ArduinoProtocol(self.controller.serial, log_callback=self.log_serial)
             self.config.set_last_port_index(self.port_combo.currentIndex())
             self.status_label3.setText(self.controller.get_connection_string())
             self.update_ui_state()
@@ -1616,7 +1692,8 @@ class MainWindow(QMainWindow):
             time_limit_minutes=max_time,
             sample_interval_sec=params.sample_interval_sec,
             beep_enabled=params.beep_enabled,
-            recovery_time_minutes=params.recovery_time_minutes
+            recovery_time_minutes=params.recovery_time_minutes,
+            auto_bt_enabled=self.config.get_auto_bt_enabled()
         )
         
         if not success:
@@ -1635,6 +1712,13 @@ class MainWindow(QMainWindow):
         self.serial_worker.message_received.connect(self.on_message_received)
         self.serial_worker.error_occurred.connect(self.on_error_occurred)
         self.serial_worker.start()
+        
+        # Delay before starting heartbeat to ensure all parameters are transmitted
+        # This prevents any timing issues with the DL processing parameters
+        time.sleep(0.5)
+        
+        # Start heartbeat timer now that test is running
+        self.serial_worker.start_heartbeat()
         
         self.status_label1.setText(f"Start Time: {datetime.now().strftime('%a %d %b %Y %H:%M')}")
         self.update_ui_state()
