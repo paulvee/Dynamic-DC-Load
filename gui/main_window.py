@@ -731,19 +731,24 @@ class MainWindow(QMainWindow):
     def create_button_panel(self) -> QHBoxLayout:
         """Create control button panel"""
         layout = QHBoxLayout()
-        
+
         self.start_btn = QPushButton("Start Test")
         self.start_btn.clicked.connect(self.start_test)
         self.start_btn.setEnabled(False)
         layout.addWidget(self.start_btn)
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self.cancel_test)
         self.cancel_btn.setEnabled(False)
         layout.addWidget(self.cancel_btn)
-        
+
         layout.addStretch()
-        
+
+        self.clear_messages_btn = QPushButton("Clear Messages")
+        self.clear_messages_btn.setToolTip("Clear all messages from the Controller Message window")
+        self.clear_messages_btn.clicked.connect(self.clear_messages)
+        layout.addWidget(self.clear_messages_btn)
+
         return layout
     
     def create_graph_tab(self) -> QWidget:
@@ -768,6 +773,14 @@ class MainWindow(QMainWindow):
         message_layout.addWidget(self.message_text)
         message_group.setLayout(message_layout)
         layout.addWidget(message_group)
+
+        # Smart auto-scroll: follow the bottom unless the user has scrolled up.
+        # rangeChanged fires after Qt finishes laying out new content, so
+        # its max argument is always the correct updated maximum.
+        self._msg_follow = True
+        msg_scrollbar = self.message_text.verticalScrollBar()
+        msg_scrollbar.rangeChanged.connect(self._on_msg_range_changed)
+        msg_scrollbar.valueChanged.connect(self._on_msg_scroll_changed)
         
         # Control buttons
         button_layout = self.create_button_panel()
@@ -799,6 +812,28 @@ class MainWindow(QMainWindow):
         
         return tab
     
+    def clear_messages(self):
+        """Clear the Controller Message window"""
+        self.message_text.clear()
+
+    def _on_msg_range_changed(self, _: int, max_val: int):
+        """Scroll to the new bottom whenever content grows, if in follow mode."""
+        if self._msg_follow:
+            self.message_text.verticalScrollBar().setValue(max_val)
+
+    def _on_msg_scroll_changed(self, value: int):
+        """Track follow mode: resume auto-scroll when user reaches the bottom."""
+        scrollbar = self.message_text.verticalScrollBar()
+        self._msg_follow = value >= scrollbar.maximum() - 4
+
+    def _append_message(self, text: str):
+        """Append text to the message window.
+
+        Auto-scrolling is handled by the rangeChanged/valueChanged signal pair
+        set up in create_graph_tab, so this method just appends the text.
+        """
+        self.message_text.append(text)
+
     def create_status_bar(self):
         """Create status bar with multiple panels"""
         self.statusbar = QStatusBar()
@@ -1110,7 +1145,7 @@ class MainWindow(QMainWindow):
             
             # Log if not verbose-only, or if verbose mode is enabled
             if not is_verbose or verbose_enabled:
-                self.message_text.append(message)
+                self._append_message(message)
 
     def on_beep_enabled_changed(self):
         """Handle beep enabled checkbox change"""
@@ -1705,7 +1740,7 @@ class MainWindow(QMainWindow):
         
         # Log sent parameters for verification
         if hasattr(self, 'message_text'):
-            self.message_text.append(f"Sent parameters: Current={params.current_ma}mA, Cutoff={params.cutoff_voltage}V, Time={max_time}min")
+            self._append_message(f"Sent parameters: Current={params.current_ma}mA, Cutoff={params.cutoff_voltage}V, Time={max_time}min")
         
         # Start serial worker thread
         self.test_data.state = TestState.RUNNING
@@ -1771,7 +1806,7 @@ class MainWindow(QMainWindow):
         """Handle received data from controller"""
         # Debug: Log received data
         if hasattr(self, 'message_text'):
-            self.message_text.append(
+            self._append_message(
                 f"RX: Time={reading.elapsed_time} V={reading.voltage:.3f}V I={reading.current_ma:.1f}mA Cap={reading.capacity_mah:.2f}mAh"
             )
         
@@ -1809,7 +1844,7 @@ class MainWindow(QMainWindow):
             
             # Log to message window
             if hasattr(self, 'message_text'):
-                self.message_text.append(f"RECOVERY: Load removed, monitoring voltage recovery for {self.test_data.parameters.recovery_time_minutes} minutes")
+                self._append_message(f"RECOVERY: Load removed, monitoring voltage recovery for {self.test_data.parameters.recovery_time_minutes} minutes")
             
             # Add vertical marker at recovery start
             times, _ = self.test_data.get_voltage_series()
@@ -1889,8 +1924,8 @@ class MainWindow(QMainWindow):
         
         # Also append to message text box in Control tab
         if hasattr(self, 'message_text'):
-            self.message_text.append(message)
-        
+            self._append_message(message)
+
         # Check for test completion
         # Note: "Cutoff" does NOT stop the test - recovery monitoring continues
         if any(keyword in message for keyword in ['Finished', 'Exceeded', 'Error', 'Cancelled']):
