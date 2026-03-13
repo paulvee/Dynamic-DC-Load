@@ -170,24 +170,19 @@ void batteryMode(void* pvParameters) {
 
         digitalWrite(NFET_OFF, LOW);  // Turn on NFETs
         nfetState = !digitalRead(NFET_OFF);
-        vTaskDelay(100 / portTICK_PERIOD_MS);  // Brief delay for FETs to stabilize
 
-        // Let the moving average filter settle with stable zero-current readings
-        // The first add() after reset() will fill all 16 samples with the current value
-        // We need several reads to populate the buffer cleanly before overshoot checks
-        for (int i = 0; i < 20; i++) {
-            // Read and filter current multiple times to fill buffer with stable values
-            portENTER_CRITICAL(&mutex);
-            double settling_current = dispCurrent;
-            portEXIT_CRITICAL(&mutex);
-            vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms between reads
-        }
+        // Brief settling delay for hardware and initial filter population
+        // MovingAverage first add() fills all 16 samples, subsequent reads naturally update
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+
         mAh_soFar = 0.0;
         startMillisec = millis();
         last_hours = 0;
         stop_oled_vars = false;
         in_recovery_mode = false;
         recovery_start_millis = 0;
+        millis_PC_wait = millis();  // Initialize - delay first data packet by full sample interval
+        millisCalc_mAh = millis();  // Initialize mAh calculation timer
 
         // Main measurement loop
         while (!end_of_test && batteryModeActive && appPresence) {
@@ -199,21 +194,34 @@ void batteryMode(void* pvParameters) {
             local_dispCurrent = dispCurrent;  // Filtered with 16-sample moving average
             portEXIT_CRITICAL(&mutex);
 
-            // ===== CURRENT REGULATION (CC MODE) =====
-            // Convert target_mA to DAC units: scale by (maxCurrent_10A / maxCurrent_mA)
-            // maxCurrent = 10.2A, maxCurrent_10A = 64000, so scale = 64000 / 10200
+            // ===== CURRENT REGULATION (Multi-stage fixed-step control) =====
+            // Calculate current error in mA (target vs actual)
             long actual_mA = (long)(local_dispCurrent * 1000);
-            long current_delta_mA = abs(target_mA - actual_mA);
+            long current_error_mA = target_mA - actual_mA;  // Positive = need more current
+            long current_error_abs = abs(current_error_mA);
 
+            // Multi-stage step sizes based on error magnitude
+            int step = 0;
+            if (current_error_abs > 200) {
+                step = 100;  // Large error: aggressive correction
+            } else if (current_error_abs > 50) {
+                step = 50;  // Medium error: moderate correction
+            } else if (current_error_abs > 10) {
+                step = 20;  // Small error: gentle correction
+            } else if (current_error_abs > 2) {
+                step = 5;  // Very small error: fine correction
+            }
+            // else: within 2mA deadband, no adjustment needed
+
+            // Apply correction
             portENTER_CRITICAL(&mutex);
-            if (actual_mA < target_mA && current_delta_mA > 30) {
-                // Current too low - increase DAC (proportional to delta in mA, scaled to DAC units)
-                DAC = DAC + (long)(current_delta_mA * 64000 / 10200.0);
-            } else if (actual_mA > target_mA && current_delta_mA > 30) {
-                // Current too high - decrease DAC
-                long dac_delta = (long)(current_delta_mA * 64000 / 10200.0);
-                if (DAC > dac_delta) {
-                    DAC = DAC - dac_delta;
+            if (current_error_mA > 0 && step > 0) {
+                // Need more current - increase DAC
+                DAC = DAC + step;
+            } else if (current_error_mA < 0 && step > 0) {
+                // Too much current - decrease DAC
+                if (DAC > step) {
+                    DAC = DAC - step;
                 } else {
                     DAC = 0;
                 }
