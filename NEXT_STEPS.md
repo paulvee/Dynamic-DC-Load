@@ -1,6 +1,6 @@
 # Next Steps - Dynamic DC Load Firmware
 
-**Current Version:** 7.0.3 (Released: March 11, 2026)  
+**Current Version:** 7.0.3a (Released: March 11, 2026)  
 **Status:** ✅ Fully functional and tested
 
 ---

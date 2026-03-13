@@ -210,9 +210,9 @@ void setup() {
     // Note: ISR attachment moved to process_encoder task for correct core affinity
 
     // Setup fan controller
-    ledcSetup(FAN_PWM, FAN_PWM_FREQ, FAN_PWM_RESOLUTION);
-    ledcAttachPin(FAN_PWM, FAN_PWM);
-    ledcWrite(FAN_PWM, 0);  // Turn off initially
+    ledcSetup(FAN_PWM_CHANNEL, FAN_PWM_FREQ, FAN_PWM_RESOLUTION);
+    ledcAttachPin(FAN_PWM, FAN_PWM_CHANNEL);
+    ledcWrite(FAN_PWM_CHANNEL, 0);  // Turn off initially
     attachInterrupt(digitalPinToInterrupt(FAN_TACHO), TachCounter_ISR, RISING);
     Serial.println("Fan setup done");
 
@@ -351,6 +351,11 @@ void mainLoop(void* pvParameters) {
                 Serial.println(modeStrings[mode]);
                 empty_avg_pool();
 
+                // Clear any stale data from serial buffer (like old cancel commands)
+                while (Serial.available()) {
+                    Serial.read();
+                }
+
                 // Send acknowledgment - DL is ready to receive parameters
                 Serial.println("ACK_BT");
             }
@@ -461,6 +466,10 @@ void mainLoop(void* pvParameters) {
                         encoderPos = 0;
                         DAC = 0;
                         portEXIT_CRITICAL(&mutex);
+                        // Clear any stale data from serial buffer (like old cancel commands)
+                        while (Serial.available()) {
+                            Serial.read();
+                        }
                         break;
 
                     case battery:

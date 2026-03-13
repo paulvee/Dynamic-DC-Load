@@ -161,25 +161,34 @@ void send_encoder() {
             break;
     }
 
-    // Clear field
+    // Clear field for value area
     tft.fillRect(digit_3, s_line + 3, 65, 17, BLACK);
     tft.setTextColor(BLUE);
     tft.setFont(&FreeSans9pt7b);
     tft.setTextSize(1);
 
-    // Right-justify based on value magnitude
-    if (displayVal >= 10000) {
-        tft.setCursor(digit_4, s_line + 17);
-    } else if (displayVal >= 1000) {
-        tft.setCursor(digit_5, s_line + 17);
-    } else if (displayVal >= 100) {
-        tft.setCursor(digit_6, s_line + 17);
-    } else if (displayVal >= 10) {
-        tft.setCursor(digit_7, s_line + 17);
-    } else {
-        tft.setCursor(digit_8, s_line + 17);
+    // Mode-specific position offset
+    // CC: shift right (+10px), CV: shift left (-10px), CP/CR: no change
+    int x_offset = 0;
+    if (mode == current) {
+        x_offset = 10;  // Shift right one char position
+    } else if (mode == voltage) {
+        x_offset = -10;  // Shift left one char position
     }
 
+    // Display the encoder value with mode-specific positioning
+    if (displayVal >= 10000) {
+        tft.setCursor(digit_3 + x_offset, s_line + 17);
+    } else if (displayVal >= 1000) {
+        tft.setCursor(digit_4 + x_offset, s_line + 17);
+    } else if (displayVal >= 100) {
+        tft.setCursor(digit_5 + x_offset, s_line + 17);
+    } else if (displayVal >= 10) {
+        tft.setCursor(digit_6 + x_offset, s_line + 17);
+    } else {
+        // < 10
+        tft.setCursor(digit_7 + x_offset, s_line + 17);
+    }
     tft.print(displayVal, suffix);
 }
 
@@ -241,16 +250,19 @@ void send_volt() {
         tft.setTextSize(1);
         tft.fillRect(0, v_line - 25, 112, 27, BLACK);
 
+        // Round to display precision to fix positioning logic
+        double rounded_v = round(_voltage * 1000) / 1000;
+
         if (_voltage < minVoltage) {
             // Warning color for low voltage
             tft.setTextColor(RED);
             tft.setCursor(ldigit_2, v_line);
             tft.print(String(_voltage, 3));
-        } else if (_voltage < 10) {
+        } else if (rounded_v < 10) {
             // < 10V: shift right
             tft.setCursor(ldigit_2, v_line);
             tft.print(String(_voltage, 3));
-        } else if (_voltage < 100) {
+        } else if (rounded_v < 100) {
             // 10V - 99.9V
             tft.setCursor(ldigit_1, v_line);
             tft.print(String(_voltage, 3));
@@ -289,7 +301,10 @@ void send_current() {
             _current = 0;  // Negative values mess up the display
         }
 
-        if (_current >= 10) {
+        // Round to display precision to fix positioning logic
+        double rounded_a = round(_current * 1000) / 1000;
+
+        if (rounded_a >= 10) {
             // >= 10A
             tft.setCursor(ldigit_1, a_line);
             tft.print(String(_current, 3));
@@ -431,8 +446,18 @@ void send_mode() {
     tft.print(modeStrings[mode]);
 
     // Update SET encoder suffix
-    tft.fillRect(digit_9 + 5, s_line + 3, 35, 17, BLACK);
-    tft.setCursor(digit_10, s_line + 17);
+    // Moved one char pos right to avoid clobbering decimals
+    tft.fillRect(digit_9 + 6, s_line + 3, 40, 17, BLACK);
+    // Different positioning for each mode
+    if (mode == current || mode == battery) {
+        tft.setCursor(digit_8 + 19, s_line + 17);  // mA: 1px more (was 18, now 19)
+    } else if (mode == voltage) {
+        tft.setCursor(digit_9 + 25, s_line + 17);  // V: 10px more (was 15, now 25) = 115
+    } else if (mode == power) {
+        tft.setCursor(digit_9 + 19, s_line + 17);  // W: 4px more (was 15, now 19) = 109
+    } else if (mode == resistance) {
+        tft.setCursor(digit_9 + 23, s_line + 17);  // R: 8px more (was 15, now 23) = 113
+    }
     tft.print(suffixStrings[mode]);
 
     send_power();
@@ -479,9 +504,19 @@ void setup_oled() {
     tft.setCursor(digit_0, s_line + 17);
     tft.println("Set");
 
-    // Print encoder suffix
-    tft.fillRect(digit_8 + 5, s_line + 3, 40, 17, BLACK);
-    tft.setCursor(digit_8 + 15, s_line + 17);
+    // Print encoder suffix (setup)
+    // Moved one char pos right to avoid clobbering decimals
+    tft.fillRect(digit_9 + 6, s_line + 3, 40, 17, BLACK);
+    // Different positioning for each mode
+    if (mode == current || mode == battery) {
+        tft.setCursor(digit_8 + 19, s_line + 17);  // mA: 1px more (was 18, now 19)
+    } else if (mode == voltage) {
+        tft.setCursor(digit_9 + 25, s_line + 17);  // V: 10px more (was 15, now 25) = 115
+    } else if (mode == power) {
+        tft.setCursor(digit_9 + 19, s_line + 17);  // W: 4px more (was 15, now 19) = 109
+    } else if (mode == resistance) {
+        tft.setCursor(digit_9 + 23, s_line + 17);  // R: 8px more (was 15, now 23) = 113
+    }
     tft.print(suffixStrings[mode]);
 
     draw_degree_symbol();

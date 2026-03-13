@@ -52,15 +52,15 @@ void fanController(void* pvParameters) {
         if (_temp <= 30) {
             // Below 30°C: Turn fan off
             fan_pwm = 0;
-            ledcWrite(FAN_PWM, fan_pwm);
+            ledcWrite(FAN_PWM_CHANNEL, fan_pwm);
         } else if (_temp > 30 && _temp <= 60) {
             // 30-60°C: Proportional control
             fan_pwm = map(_temp, 0, 80, 0, pow(2, FAN_PWM_RESOLUTION) - 1);
-            ledcWrite(FAN_PWM, fan_pwm);
+            ledcWrite(FAN_PWM_CHANNEL, fan_pwm);
         } else {
             // Above 60°C: Maximum speed
-            fan_pwm = 256;
-            ledcWrite(FAN_PWM, fan_pwm);
+            fan_pwm = 255;
+            ledcWrite(FAN_PWM_CHANNEL, fan_pwm);
         }
 
         // Update fan speed every 2 seconds

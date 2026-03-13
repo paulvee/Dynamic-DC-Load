@@ -2,7 +2,7 @@
  * @file Config.h
  * @brief Configuration, pins, and calibration constants for Dynamic Load
  * @author Paul Versteeg
- * @version 7.0.3
+ * @version 7.0.4a
  * @date 2024
  */
 
@@ -12,7 +12,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.0.3";
+const String FW_VERSION = "7.0.4a";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -145,6 +145,7 @@ const int LONG_PRESS_TIME = 1000;   // Longer than 1000ms
 // FAN CONTROLLER SETTINGS
 //=============================================================================
 
+const int FAN_PWM_CHANNEL = 0;     // PWM channel (0-15)
 const int FAN_PWM_FREQ = 25000;    // 25kHz PWM frequency
 const int FAN_PWM_RESOLUTION = 8;  // 8-bit resolution (0-255)
 
