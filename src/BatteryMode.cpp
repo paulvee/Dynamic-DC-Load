@@ -195,7 +195,7 @@ void batteryMode(void* pvParameters) {
             // Use filtered voltage (dispVoltage) for cutoff detection to avoid jitter
             double local_dutV, local_dispCurrent;
             portENTER_CRITICAL(&mutex);
-            local_dutV = dispVoltage;      // Filtered with 16-sample moving average
+            local_dutV = dispVoltage;         // Filtered with 16-sample moving average
             local_dispCurrent = dispCurrent;  // Filtered with 16-sample moving average
             portEXIT_CRITICAL(&mutex);
 

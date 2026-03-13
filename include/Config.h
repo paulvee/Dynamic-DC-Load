@@ -116,6 +116,13 @@ const double shuntVcalib = 2.5000;  // Current display calibration factor
 const double cvCalFactor = 1.054333;  // CV cut-in voltage calibration factor
 
 //=============================================================================
+// DAC LIMIT CONSTANTS
+//=============================================================================
+
+const uint16_t DAC_MAX_CV_MODE = 62726;  // Equivalent to 100.5V (just over the maximum of 100V)
+const uint16_t DAC_MAX_CP_MODE = 30000;  // About 150W >> needs further tuning
+
+//=============================================================================
 // ENCODER SETTINGS
 //=============================================================================
 

@@ -306,6 +306,7 @@ void mainLoop(void* pvParameters) {
     unsigned long releasedTime = 0;
     bool isPressing = false;
     bool isLongDetected = false;
+    bool longPressJustCompleted = false;  // Prevents button action immediately after mode switch
 
     while (true) {
         // Show loop time on DSO (optional)
@@ -366,6 +367,7 @@ void mainLoop(void* pvParameters) {
             pressedTime = millis();
             isPressing = true;
             isLongDetected = false;
+            longPressJustCompleted = false;  // Clear guard on new press
         }
 
         if (button.isReleased()) {
@@ -373,7 +375,8 @@ void mainLoop(void* pvParameters) {
             releasedTime = millis();
             long pressDuration = releasedTime - pressedTime;
 
-            if (pressDuration < SHORT_PRESS_TIME) {
+            // Ignore this release if it's right after a long press mode switch
+            if (!longPressJustCompleted && pressDuration < SHORT_PRESS_TIME) {
                 // Short press: Toggle MOSFET on/off
                 rawV = ADS.readADC(1);
 
@@ -390,11 +393,11 @@ void mainLoop(void* pvParameters) {
                     digitalWrite(NFET_OFF, !digitalRead(NFET_OFF));
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                     nfetState = !digitalRead(NFET_OFF);
-                    
+
                     // In CV mode, give extra time for circuit to settle and clear transient reading
                     if (mode == voltage && nfetState) {
                         vTaskDelay(200 / portTICK_PERIOD_MS);
-                        empty_avg_pool();  // Clear any transient current readings
+                        avgCurrent.reset();  // Clear only current transients, keep voltage/temp
                     }
                 }
             }
@@ -418,7 +421,7 @@ void mainLoop(void* pvParameters) {
                         mode = voltage;
                         digitalWrite(CV_MODE, HIGH);
                         vTaskDelay(100 / portTICK_PERIOD_MS);  // Let CV_MODE circuit stabilize first
-                        
+
                         // Calculate and set the correct DAC value immediately to avoid large step change
                         if (dutV > minVoltage) {
                             // Set encoder to 105% of DUT voltage for safety margin
@@ -426,16 +429,16 @@ void mainLoop(void* pvParameters) {
                             portENTER_CRITICAL(&mutex);
                             encoderPos = dutV * 105;
                             DAC = int(target_voltage / maxVoltage * 65535 * cvCalFactor);
-                            if (DAC > 62726) DAC = 62726;  // Clamp to 100.5V max
+                            if (DAC > DAC_MAX_CV_MODE) DAC = DAC_MAX_CV_MODE;
                             portEXIT_CRITICAL(&mutex);
                         } else {
                             // No valid voltage, set to maximum
                             portENTER_CRITICAL(&mutex);
                             encoderPos = maxVoltage;
-                            DAC = 62726;  // Set to max voltage
+                            DAC = DAC_MAX_CV_MODE;
                             portEXIT_CRITICAL(&mutex);
                         }
-                        
+
                         dac.write(DAC);
                         vTaskDelay(500 / portTICK_PERIOD_MS);  // Let CV circuit fully settle at target voltage
                         break;
@@ -501,9 +504,10 @@ void mainLoop(void* pvParameters) {
                 }
 
                 Serial.print("New mode = ");
+                longPressJustCompleted = true;  // Prevent button action on release
                 Serial.println(modeStrings[mode]);
                 isLongDetected = true;
-                empty_avg_pool();
+                // Don't reset averaging on mode switch - voltage/temp stay same, current is real
             }
         }
 
@@ -522,7 +526,7 @@ void mainLoop(void* pvParameters) {
                 portENTER_CRITICAL(&mutex);
                 set_voltage = encoderPos / 10.0;
                 DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
-                if (DAC > 62726) DAC = 62726;
+                if (DAC > DAC_MAX_CV_MODE) DAC = DAC_MAX_CV_MODE;
                 portEXIT_CRITICAL(&mutex);
                 dac.write(DAC);
                 break;
@@ -532,21 +536,39 @@ void mainLoop(void* pvParameters) {
                 set_power = encoderPos / 10.0;  // encoderPos is Watt in 100mW or 1W clicks
                 double local_dutPower = dutPower;
                 portEXIT_CRITICAL(&mutex);
+
+                // Multi-stage control algorithm using fixed steps for faster settling:
+                // Proportional control is too slow - use aggressive fixed steps instead
+                double powerError = abs(set_power - local_dutPower);
                 
-                // with a mere 1 bit DAC change every 20mS, it takes several seconds for the DAC to change
-                // to larger values. This causes a long delay in the DUT reaction.
-                // I use the trick below to speed-it up. The DAC now changes based on the measured delta
-                powerDelta = abs(set_power - local_dutPower) * 10;  // increase resolution by 2 decimals
+                if (powerError > 2.0) {
+                    // Very far from target: large fixed step for fast initial response
+                    powerDelta = 100;
+                } else if (powerError > 0.5) {
+                    // Far from target: medium-large fixed step
+                    powerDelta = 50;
+                } else if (powerError > 0.1) {
+                    // Medium distance: moderate fixed step
+                    powerDelta = 20;
+                } else if (powerError > 0.02) {
+                    // Close to target: small fixed step for stable approach
+                    powerDelta = 5;
+                } else {
+                    // Very close (within 20mW): stop adjusting to prevent hunting
+                    powerDelta = 0;
+                }
 
                 portENTER_CRITICAL(&mutex);
-                if (local_dutPower * 10 < set_power * 10) {
+                if (local_dutPower < set_power) {
                     DAC = DAC + powerDelta;
-                } else {
+                } else if (local_dutPower > set_power) {
                     DAC = DAC - powerDelta;
                 }
-                
-                if (set_power == 0) { DAC = 0; }  // prevent an initial run-away when the power is applied
-                
+
+                if (set_power == 0) {
+                    DAC = 0;
+                }  // prevent an initial run-away when the power is applied
+
                 // special condition!
                 // if the DUT (a power supply?) goes to the CC mode, the DUT voltage goes to zero and the NFET's will be switched off.
                 // This also results in a dutPower value of zero.
@@ -557,9 +579,12 @@ void mainLoop(void* pvParameters) {
                     DAC = 0;
                     set_power = 0;
                 }
-                
-                if (DAC > 30000) { DAC = 30000; }  // 30000 is about 150W >> needs further tuning
+
+                if (DAC > DAC_MAX_CP_MODE) {
+                    DAC = DAC_MAX_CP_MODE;
+                }
                 portEXIT_CRITICAL(&mutex);
+
                 dac.write(DAC);  // output the DAC value
                 break;
             }
@@ -575,18 +600,38 @@ void mainLoop(void* pvParameters) {
                     portEXIT_CRITICAL(&mutex);
 
                     set_current = abs(local_dutV / set_resistance);
-                    currentDelta = abs((set_current - local_shuntV) * 1000);  // increase resolution, result must be > 1 for the DAC to move
+                    
+                    // Multi-stage control algorithm using fixed steps for faster settling
+                    double currentError = abs(set_current - local_shuntV);
+                    
+                    if (currentError > 0.2) {
+                        // Very far from target: large fixed step for fast initial response
+                        currentDelta = 100;
+                    } else if (currentError > 0.05) {
+                        // Far from target: medium-large fixed step
+                        currentDelta = 50;
+                    } else if (currentError > 0.01) {
+                        // Medium distance: moderate fixed step
+                        currentDelta = 20;
+                    } else if (currentError > 0.002) {
+                        // Close to target: small fixed step for stable approach
+                        currentDelta = 5;
+                    } else {
+                        // Very close (within 2mA): stop adjusting to prevent hunting
+                        currentDelta = 0;
+                    }
 
                     portENTER_CRITICAL(&mutex);
-                    if ((local_shuntV * 10 < set_current * 10)) {
+                    if (local_shuntV < set_current) {
                         DAC = DAC + currentDelta;  // increase the current
-                    } else {
+                    } else if (local_shuntV > set_current) {
                         DAC = DAC - currentDelta;
                     }
                     portEXIT_CRITICAL(&mutex);
                 }
+                // Safety limit check - always enforced regardless of NFET state
                 portENTER_CRITICAL(&mutex);
-                if (DAC > maxCurrent_4A) DAC = maxCurrent_4A;  // impose an arbitrary limit
+                if (DAC > maxCurrent_4A) DAC = maxCurrent_4A;
                 portEXIT_CRITICAL(&mutex);
                 dac.write(DAC);  // output the DAC value
                 break;
@@ -610,8 +655,8 @@ void mainLoop(void* pvParameters) {
         // Reset watchdog timer (prevent system reset)
         esp_task_wdt_reset();
 
-        // Small delay (loop time ~18ms)
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        // No delay - run as fast as possible for CP/CR mode response (loop time ~18ms)
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
 
@@ -777,15 +822,6 @@ void checkValidValues() {
     }
 }
 
-void prep_new_mode() {
-    // TODO: Implement mode preparation logic
-}
-
-float adc2volt() {
-    // TODO: Implement if needed
-    return 0.0;
-}
-
 //=============================================================================
 // UTILITY FUNCTIONS
 // Note: RTOS task functions (process_encoder, updateOledDisplay) are in their
@@ -793,5 +829,9 @@ float adc2volt() {
 //=============================================================================
 
 void empty_avg_pool() {
+    // Reset all averaging pools when entering Battery Test mode
+    // Battery mode needs clean slate for accurate profiling
     avgCurrent.reset();
+    avgVoltage.reset();
+    avgTemperature.reset();
 }

@@ -133,10 +133,6 @@ void readShunt();
 void readTemp();
 void checkValidValues();
 
-// Mode functions
-void prep_new_mode();
-float adc2volt();
-
 // Communication functions
 void send_volt();
 void send_current();
