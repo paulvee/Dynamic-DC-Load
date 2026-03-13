@@ -21,6 +21,7 @@
 #include <ezButton.h>
 
 #include "Config.h"
+#include "MovingAverage.h"  // for shared filters
 
 // Forward declarations
 // Note: MovingAverage is a template class, included in main.cpp
@@ -76,6 +77,11 @@ extern volatile long shuntVraw;        // Raw shunt value
 extern volatile long rawI_avg;         // Averaged raw current
 extern volatile double dutPower;       // Power in Watts
 extern volatile double dutResistance;  // Calculated resistance
+
+// Moving average filters defined in main.cpp
+extern MovingAverage<long, 16> avgVoltage;
+extern MovingAverage<long, 16> avgCurrent;
+extern MovingAverage<long, 16> avgTemperature;
 
 // Set points
 extern double set_current;

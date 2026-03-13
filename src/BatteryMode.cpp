@@ -159,8 +159,29 @@ void batteryMode(void* pvParameters) {
             setup_oled();  // Prepare OLED for measurement display
         }
 
+        // Ensure DAC/current state is reset for a fresh test
+        portENTER_CRITICAL(&mutex);
+        DAC = 0;
+        portEXIT_CRITICAL(&mutex);
+        dac.write(0);
+
+        // Clear any accumulated current history so ramp starts from zero
+        avgCurrent.reset();
+
         digitalWrite(NFET_OFF, LOW);  // Turn on NFETs
         nfetState = !digitalRead(NFET_OFF);
+        vTaskDelay(100 / portTICK_PERIOD_MS);  // Brief delay for FETs to stabilize
+
+        // Let the moving average filter settle with stable zero-current readings
+        // The first add() after reset() will fill all 16 samples with the current value
+        // We need several reads to populate the buffer cleanly before overshoot checks
+        for (int i = 0; i < 20; i++) {
+            // Read and filter current multiple times to fill buffer with stable values
+            portENTER_CRITICAL(&mutex);
+            double settling_current = dispCurrent;
+            portEXIT_CRITICAL(&mutex);
+            vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms between reads
+        }
         mAh_soFar = 0.0;
         startMillisec = millis();
         last_hours = 0;
@@ -172,11 +193,36 @@ void batteryMode(void* pvParameters) {
         while (!end_of_test && batteryModeActive && appPresence) {
             // Read shared variables with mutex protection
             // Use filtered voltage (dispVoltage) for cutoff detection to avoid jitter
-            double local_dutV, local_shuntV;
+            double local_dutV, local_dispCurrent;
             portENTER_CRITICAL(&mutex);
-            local_dutV = dispVoltage;  // Filtered with 16-sample moving average
-            local_shuntV = shuntV;
+            local_dutV = dispVoltage;      // Filtered with 16-sample moving average
+            local_dispCurrent = dispCurrent;  // Filtered with 16-sample moving average
             portEXIT_CRITICAL(&mutex);
+
+            // ===== CURRENT REGULATION (CC MODE) =====
+            // Convert target_mA to DAC units: scale by (maxCurrent_10A / maxCurrent_mA)
+            // maxCurrent = 10.2A, maxCurrent_10A = 64000, so scale = 64000 / 10200
+            long actual_mA = (long)(local_dispCurrent * 1000);
+            long current_delta_mA = abs(target_mA - actual_mA);
+
+            portENTER_CRITICAL(&mutex);
+            if (actual_mA < target_mA && current_delta_mA > 30) {
+                // Current too low - increase DAC (proportional to delta in mA, scaled to DAC units)
+                DAC = DAC + (long)(current_delta_mA * 64000 / 10200.0);
+            } else if (actual_mA > target_mA && current_delta_mA > 30) {
+                // Current too high - decrease DAC
+                long dac_delta = (long)(current_delta_mA * 64000 / 10200.0);
+                if (DAC > dac_delta) {
+                    DAC = DAC - dac_delta;
+                } else {
+                    DAC = 0;
+                }
+            }
+
+            // Clamp DAC to valid range (0 to 64000 for 10A max)
+            if (DAC > 64000) DAC = 64000;
+            portEXIT_CRITICAL(&mutex);
+            dac.write(DAC);
 
             // Check cutoff voltage - enter recovery mode
             if ((!end_of_test) && (!in_recovery_mode) && (local_dutV < cutoff_voltage)) {
@@ -202,7 +248,7 @@ void batteryMode(void* pvParameters) {
             }
 
             // Check current overshoot (>25%) - only during active discharge, not during recovery
-            if ((!end_of_test) && (!in_recovery_mode) && ((local_shuntV * 1000) > (target_mA * 1.25))) {
+            if ((!end_of_test) && (!in_recovery_mode) && ((local_dispCurrent * 1000) > (target_mA * 1.25))) {
                 Serial.print("MSGSTError - High mAMSGEND");
                 termination_message_sent = true;
                 end_of_test = true;
@@ -270,15 +316,15 @@ void batteryMode(void* pvParameters) {
             if (!end_of_test) {
                 getTime();
 
-                // Calculate mAh (read shuntV with protection)
+                // Calculate mAh (read filtered current with protection)
                 if (millis() > millisCalc_mAh + 1000) {
                     double this_hours = (millis() - startMillisec) / (1000.0 * 3600.0);
 
                     portENTER_CRITICAL(&mutex);
-                    double current_shuntV = shuntV;
+                    double current_filtered = dispCurrent;
                     portEXIT_CRITICAL(&mutex);
 
-                    mAh_soFar = mAh_soFar + ((this_hours - last_hours) * current_shuntV * 1000);
+                    mAh_soFar = mAh_soFar + ((this_hours - last_hours) * current_filtered * 1000);
                     last_hours = this_hours;
                     millisCalc_mAh = millis();
                 }
@@ -320,6 +366,10 @@ void batteryMode(void* pvParameters) {
 
         // If mode changed, exit gracefully
         if (!batteryModeActive) {
+            // Ensure NFETs are turned off when exiting battery mode (manual exit via button)
+            digitalWrite(NFET_OFF, HIGH);
+            nfetState = false;
+
             // Only send mode ended message if no other termination message was sent
             if (!termination_message_sent) {
                 Serial.print("MSGSTBT Mode EndedMSGEND");
