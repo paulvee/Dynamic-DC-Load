@@ -390,6 +390,12 @@ void mainLoop(void* pvParameters) {
                     digitalWrite(NFET_OFF, !digitalRead(NFET_OFF));
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                     nfetState = !digitalRead(NFET_OFF);
+                    
+                    // In CV mode, give extra time for circuit to settle and clear transient reading
+                    if (mode == voltage && nfetState) {
+                        vTaskDelay(200 / portTICK_PERIOD_MS);
+                        empty_avg_pool();  // Clear any transient current readings
+                    }
                 }
             }
         }
@@ -411,20 +417,27 @@ void mainLoop(void* pvParameters) {
                     case current:
                         mode = voltage;
                         digitalWrite(CV_MODE, HIGH);
-                        portENTER_CRITICAL(&mutex);
-                        DAC = 65000;
-                        portEXIT_CRITICAL(&mutex);
-                        dac.write(DAC);
-                        vTaskDelay(100 / portTICK_PERIOD_MS);
+                        vTaskDelay(100 / portTICK_PERIOD_MS);  // Let CV_MODE circuit stabilize first
+                        
+                        // Calculate and set the correct DAC value immediately to avoid large step change
                         if (dutV > minVoltage) {
+                            // Set encoder to 105% of DUT voltage for safety margin
+                            double target_voltage = dutV * 1.05;
                             portENTER_CRITICAL(&mutex);
                             encoderPos = dutV * 105;
+                            DAC = int(target_voltage / maxVoltage * 65535 * cvCalFactor);
+                            if (DAC > 62726) DAC = 62726;  // Clamp to 100.5V max
                             portEXIT_CRITICAL(&mutex);
                         } else {
+                            // No valid voltage, set to maximum
                             portENTER_CRITICAL(&mutex);
                             encoderPos = maxVoltage;
+                            DAC = 62726;  // Set to max voltage
                             portEXIT_CRITICAL(&mutex);
                         }
+                        
+                        dac.write(DAC);
+                        vTaskDelay(500 / portTICK_PERIOD_MS);  // Let CV circuit fully settle at target voltage
                         break;
 
                     case voltage:
@@ -514,62 +527,68 @@ void mainLoop(void* pvParameters) {
                 dac.write(DAC);
                 break;
 
-            case power:  // Constant Power (CP) Mode
+            case power: {  // Constant Power (CP) Mode, DUTcurrent = set_power/DUTV, @loop time speed
                 portENTER_CRITICAL(&mutex);
-                set_power = encoderPos / 10.0;
+                set_power = encoderPos / 10.0;  // encoderPos is Watt in 100mW or 1W clicks
+                double local_dutPower = dutPower;
                 portEXIT_CRITICAL(&mutex);
-                powerDelta = abs(set_power - dutPower) * 10;
+                
+                // with a mere 1 bit DAC change every 20mS, it takes several seconds for the DAC to change
+                // to larger values. This causes a long delay in the DUT reaction.
+                // I use the trick below to speed-it up. The DAC now changes based on the measured delta
+                powerDelta = abs(set_power - local_dutPower) * 10;  // increase resolution by 2 decimals
 
                 portENTER_CRITICAL(&mutex);
-                if (dutPower * 10 < set_power * 10) {
-                    if (powerDelta > 50) {
-                        DAC = DAC + powerDelta;
-                    } else {
-                        DAC = DAC + 1;
-                    }
-                } else if (dutPower * 10 > set_power * 10) {
-                    if (powerDelta > 50) {
-                        DAC = DAC - powerDelta;
-                    } else if (DAC > 0) {
-                        DAC = DAC - 1;
-                    }
+                if (local_dutPower * 10 < set_power * 10) {
+                    DAC = DAC + powerDelta;
+                } else {
+                    DAC = DAC - powerDelta;
                 }
-
-                if (DAC > maxCurrent_10A) DAC = maxCurrent_10A;
+                
+                if (set_power == 0) { DAC = 0; }  // prevent an initial run-away when the power is applied
+                
+                // special condition!
+                // if the DUT (a power supply?) goes to the CC mode, the DUT voltage goes to zero and the NFET's will be switched off.
+                // This also results in a dutPower value of zero.
+                // When you switch the NFET's back on, the DAC value remains high and the powerDelta is also high, which will
+                // switch the DUT in over-current again. The only remedy is to completely dial the DL down to zero power
+                // and start the measurement again. The following code allows you to resume the measurement.
+                if ((nfetState == false) && (local_dutPower == 0)) {
+                    DAC = 0;
+                    set_power = 0;
+                }
+                
+                if (DAC > 30000) { DAC = 30000; }  // 30000 is about 150W >> needs further tuning
                 portEXIT_CRITICAL(&mutex);
-                dac.write(DAC);
+                dac.write(DAC);  // output the DAC value
                 break;
+            }
 
             case resistance: {  // Constant Resistance (CR) Mode
-                portENTER_CRITICAL(&mutex);
-                set_resistance = encoderPos / 10.0;
-                double local_dutV = dutV;
-                double local_shuntV = shuntV;
-                portEXIT_CRITICAL(&mutex);
+                // In this mode, a small encoder value means a high current
+                // This mode starts with the encoder/DAC set at a safe current of 100mA based on the DUT voltage
+                if (nfetState == true) {  // only adjust the DAC when the DL is on.
+                    portENTER_CRITICAL(&mutex);
+                    set_resistance = encoderPos / 10.0;  // encoderPos in Ohms (100mOhm or 1 Ohm clicks)
+                    double local_dutV = dutV;
+                    double local_shuntV = shuntV;
+                    portEXIT_CRITICAL(&mutex);
 
-                if (local_dutV > 1.0) {
-                    set_current = (local_dutV / set_resistance) * 1000;
-                    currentDelta = abs(int(set_current) - int(local_shuntV * 1000));
+                    set_current = abs(local_dutV / set_resistance);
+                    currentDelta = abs((set_current - local_shuntV) * 1000);  // increase resolution, result must be > 1 for the DAC to move
 
                     portENTER_CRITICAL(&mutex);
-                    if (local_shuntV * 1000 < set_current) {
-                        if (currentDelta > 50) {
-                            DAC = DAC + currentDelta;
-                        } else {
-                            DAC = DAC + 1;
-                        }
-                    } else if (local_shuntV * 1000 > set_current) {
-                        if (currentDelta > 50) {
-                            DAC = DAC - currentDelta;
-                        } else if (DAC > 0) {
-                            DAC = DAC - 1;
-                        }
+                    if ((local_shuntV * 10 < set_current * 10)) {
+                        DAC = DAC + currentDelta;  // increase the current
+                    } else {
+                        DAC = DAC - currentDelta;
                     }
-
-                    if (DAC > maxCurrent_10A) DAC = maxCurrent_10A;
                     portEXIT_CRITICAL(&mutex);
-                    dac.write(DAC);
                 }
+                portENTER_CRITICAL(&mutex);
+                if (DAC > maxCurrent_4A) DAC = maxCurrent_4A;  // impose an arbitrary limit
+                portEXIT_CRITICAL(&mutex);
+                dac.write(DAC);  // output the DAC value
                 break;
             }
 
