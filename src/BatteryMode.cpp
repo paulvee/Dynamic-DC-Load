@@ -171,9 +171,36 @@ void batteryMode(void* pvParameters) {
         digitalWrite(NFET_OFF, LOW);  // Turn on NFETs
         nfetState = !digitalRead(NFET_OFF);
 
-        // Brief settling delay for hardware and initial filter population
-        // MovingAverage first add() fills all 16 samples, subsequent reads naturally update
-        vTaskDelay(150 / portTICK_PERIOD_MS);
+        // Calculate approximate target DAC for smooth ramp-up
+        // Prevents current spike by ramping: 25% -> 50% -> 75% -> 100%
+        // maxCurrent_10A (64000) corresponds to 10.2A (10200mA)
+        long target_DAC = (long)((target_mA * 64000.0) / 10200.0);
+        if (target_DAC > 64000) target_DAC = 64000;
+
+        // 4-step ramp-up to avoid current spike (total ~200ms)
+        portENTER_CRITICAL(&mutex);
+        DAC = target_DAC / 4;  // 25%
+        portEXIT_CRITICAL(&mutex);
+        dac.write(DAC);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+
+        portENTER_CRITICAL(&mutex);
+        DAC = target_DAC / 2;  // 50%
+        portEXIT_CRITICAL(&mutex);
+        dac.write(DAC);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+
+        portENTER_CRITICAL(&mutex);
+        DAC = (target_DAC * 3) / 4;  // 75%
+        portEXIT_CRITICAL(&mutex);
+        dac.write(DAC);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+
+        portENTER_CRITICAL(&mutex);
+        DAC = target_DAC;  // 100%
+        portEXIT_CRITICAL(&mutex);
+        dac.write(DAC);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
 
         mAh_soFar = 0.0;
         startMillisec = millis();
