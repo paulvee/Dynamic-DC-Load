@@ -246,10 +246,25 @@ void batteryMode(void* pvParameters) {
             local_dispCurrent = dispCurrent;  // Filtered with 16-sample moving average
             portEXIT_CRITICAL(&mutex);
 
+            // ===== POWER LIMIT PROTECTION (150W hardware limit) =====
+            // Enforce current limit based on voltage to prevent exceeding 150W
+            // Below 40V: allow up to 8A (8000mA)
+            // Above 40V: limit to 4A (4000mA) to stay under 160W
+            long effective_target_mA = target_mA;
+            if (local_dutV >= 40.0 && target_mA > 4000) {
+                effective_target_mA = 4000;
+                // Note: Don't spam serial - only log if actually limiting
+                static bool power_limit_warned = false;
+                if (!power_limit_warned) {
+                    Serial.println("Power limit: Current reduced to 4A (voltage >= 40V)");
+                    power_limit_warned = true;
+                }
+            }
+
             // ===== CURRENT REGULATION (Multi-stage fixed-step control) =====
             // Calculate current error in mA (target vs actual)
             long actual_mA = (long)(local_dispCurrent * 1000);
-            long current_error_mA = target_mA - actual_mA;  // Positive = need more current
+            long current_error_mA = effective_target_mA - actual_mA;  // Positive = need more current
             long current_error_abs = abs(current_error_mA);
 
             // Multi-stage step sizes based on error magnitude
@@ -308,7 +323,8 @@ void batteryMode(void* pvParameters) {
             }
 
             // Check current overshoot (>25%) - only during active discharge, not during recovery
-            if ((!end_of_test) && (!in_recovery_mode) && ((local_dispCurrent * 1000) > (target_mA * 1.25))) {
+            // Use effective_target_mA to account for power limiting
+            if ((!end_of_test) && (!in_recovery_mode) && ((local_dispCurrent * 1000) > (effective_target_mA * 1.25))) {
                 Serial.print("MSGSTError - High mAMSGEND");
                 termination_message_sent = true;
                 end_of_test = true;
