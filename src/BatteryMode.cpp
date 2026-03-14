@@ -103,6 +103,31 @@ void batteryMode(void* pvParameters) {
                     // Update communication watchdog - received test parameters
                     lastSerialActivity = millis();
 
+                    // Read first parameter - but check if it's AUTO_BT command first
+                    // If Python app sends AUTO_BT before parameters, we need to acknowledge
+                    if (Serial.peek() == 'A') {  // Might be "AUTO_BT"
+                        String cmd = Serial.readStringUntil('\n');
+                        cmd.trim();
+                        if (cmd == "AUTO_BT") {
+                            Serial.println("ACK_BT");
+                            lastSerialActivity = millis();
+                            
+                            // Wait for actual parameters
+                            start = millis();
+                            while (Serial.available() == 0 && batteryModeActive) {
+                                if (millis() - start > timeout_millis) {
+                                    appPresence = false;
+                                    Serial.flush();
+                                    break;
+                                }
+                                esp_task_wdt_reset();
+                                vTaskDelay(100 / portTICK_PERIOD_MS);
+                            }
+                        }
+                        // If not AUTO_BT, data was consumed - skip to other params
+                        // This shouldn't happen in normal operation
+                    }
+
                     target_mA = Serial.parseInt();
                     cutoff_voltage = Serial.parseFloat();
                     time_limit = Serial.parseInt();

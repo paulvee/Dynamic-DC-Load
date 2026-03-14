@@ -323,34 +323,56 @@ void mainLoop(void* pvParameters) {
         checkValidValues();
 
         // Auto-switch to Battery Test mode on serial command
-        // Python app sends "AUTO_BT\n" to trigger automatic mode switch
+        // Python app sends "AUTO_BT\n" to trigger automatic mode switch or reset state
         // This doesn't interfere with firmware upload (esptool doesn't send this string)
-        if (Serial.available() && mode != battery) {
+        // Only check for AUTO_BT when not in battery mode to avoid consuming test data
+        // If already in Battery mode (even in setup), let BatteryMode.cpp handle everything
+        if (Serial.available() && !batteryModeActive) {
             String cmd = Serial.readStringUntil('\n');
             cmd.trim();
             if (cmd == "AUTO_BT") {
                 // Update communication watchdog
                 lastSerialActivity = millis();
 
-                // Switch to battery test mode
-                Serial.println("Auto-switching to Battery Test mode");
+                bool justSwitchedMode = false;
+                if (mode != battery) {
+                    // Switch to battery test mode
+                    Serial.println("Auto-switching to Battery Test mode");
 
-                // Reset to safe values
-                portENTER_CRITICAL(&mutex);
-                encoderPos = 0;
-                DAC = 0;
-                portEXIT_CRITICAL(&mutex);
-                digitalWrite(NFET_OFF, HIGH);
+                    // Reset to safe values
+                    portENTER_CRITICAL(&mutex);
+                    encoderPos = 0;
+                    DAC = 0;
+                    portEXIT_CRITICAL(&mutex);
+                    digitalWrite(NFET_OFF, HIGH);
 
-                // Activate battery mode
-                mode = battery;
-                battSetup = true;
-                batteryModeActive = true;
-                vTaskResume(BThandle);
+                    // Activate battery mode
+                    mode = battery;
+                    battSetup = true;
+                    batteryModeActive = true;
+                    vTaskResume(BThandle);
 
-                Serial.print("New mode = ");
-                Serial.println(modeStrings[mode]);
-                empty_avg_pool();
+                    Serial.print("New mode = ");
+                    Serial.println(modeStrings[mode]);
+                    empty_avg_pool();
+                    
+                    justSwitchedMode = true;
+                } else {
+                    // Already in battery mode - reset for new test
+                    Serial.println("Resetting Battery Test mode for new test");
+
+                    // Reset to safe values
+                    portENTER_CRITICAL(&mutex);
+                    encoderPos = 0;
+                    DAC = 0;
+                    portEXIT_CRITICAL(&mutex);
+                    digitalWrite(NFET_OFF, HIGH);
+
+                    // Trigger setup phase for new test
+                    battSetup = true;
+                    batteryModeActive = true;
+                    // Task is already running, no need to resume
+                }
 
                 // Clear any stale data from serial buffer (like old cancel commands)
                 while (Serial.available()) {
@@ -359,6 +381,11 @@ void mainLoop(void* pvParameters) {
 
                 // Send acknowledgment - DL is ready to receive parameters
                 Serial.println("ACK_BT");
+                
+                // Delay after mode switch to allow "Waiting for parameters" message to be visible
+                if (justSwitchedMode) {
+                    delay(1000);
+                }
             }
         }
 
