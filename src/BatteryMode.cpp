@@ -111,7 +111,7 @@ void batteryMode(void* pvParameters) {
                         if (cmd == "AUTO_BT") {
                             Serial.println("ACK_BT");
                             lastSerialActivity = millis();
-                            
+
                             // Wait for actual parameters
                             start = millis();
                             while (Serial.available() == 0 && batteryModeActive) {
@@ -164,7 +164,7 @@ void batteryMode(void* pvParameters) {
                 tft.setCursor(0, 70);
                 tft.print("RecTime: ");
                 tft.print(recovery_time_minutes);
-                tft.print(" min");
+                tft.print("m");
                 vTaskDelay(2000 / portTICK_PERIOD_MS);
 
                 // Apply parameters with mutex protection
