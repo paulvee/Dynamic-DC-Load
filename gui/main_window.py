@@ -949,7 +949,7 @@ class MainWindow(QMainWindow):
         else:
             # Simplified list of common cutoff voltages
             voltages = [
-                ("7.50", "7.50 V (E-Block NiMH)"),
+                ("7.00", "7.00 V (E-Block NiMH)"),
                 ("3.00", "3.00 V (Li-Ion/LiPo)"),
                 ("0.90", "0.90 V (NiMH/NiCd)"),
                 ("0.80", "0.80 V (Alkaline)"),
@@ -1580,7 +1580,7 @@ class MainWindow(QMainWindow):
             "LiFePO4 (3.2v)": 2.5,        # 2.5V per cell (recommended minimum)
             "NiMH (1.2v)": 0.90,          # 0.9V per cell
             "NiCd (1.2v)": 0.90,          # 0.9V per cell
-            "E-Block NiMH (9v)": 7.50,    # ~0.9V per cell for 9V battery
+            "E-Block NiMH (9v)": 7.00,    # 7 cells × 1.0V/cell for 9V battery
             "Alkaline (1.5v)": 0.80,      # 0.8V per cell
             "Other": 3.00                  # Safe default
         }
