@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.4j
+ * @version 7.0.4k
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.
@@ -417,14 +417,14 @@ void mainLoop(void* pvParameters) {
                     // Valid positive voltage
                     digitalWrite(DUT_PWR, HIGH);
                     vTaskDelay(100 / portTICK_PERIOD_MS);
+
                     digitalWrite(NFET_OFF, !digitalRead(NFET_OFF));
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                     nfetState = !digitalRead(NFET_OFF);
 
-                    // In CV mode, give extra time for circuit to settle and clear transient reading
+                    // In CV mode, give extra time for circuit to settle
                     if (mode == voltage && nfetState) {
                         vTaskDelay(200 / portTICK_PERIOD_MS);
-                        avgCurrent.reset();  // Clear only current transients, keep voltage/temp
                     }
                 }
             }
@@ -467,6 +467,7 @@ void mainLoop(void* pvParameters) {
                         }
 
                         dac.write(DAC);
+                        avgCurrent.reset();                    // Clear current average for clean CV mode start
                         vTaskDelay(500 / portTICK_PERIOD_MS);  // Let CV circuit fully settle at target voltage
                         break;
 
@@ -541,40 +542,38 @@ void mainLoop(void* pvParameters) {
         // Mode-specific control logic
         switch (mode) {
             case current:  // Constant Current (CC) Mode
-                {
-                    portENTER_CRITICAL(&mutex);
-                    unsigned long local_encoderPos = encoderPos;
-                    portEXIT_CRITICAL(&mutex);
+            {
+                portENTER_CRITICAL(&mutex);
+                unsigned long local_encoderPos = encoderPos;
+                portEXIT_CRITICAL(&mutex);
 
-                    set_current = local_encoderPos * EncoderRes;
-                    uint16_t local_DAC = set_current;
-                    if (local_DAC > maxCurrent_10A) local_DAC = maxCurrent_10A;
+                set_current = local_encoderPos * EncoderRes;
+                uint16_t local_DAC = set_current;
+                if (local_DAC > maxCurrent_10A) local_DAC = maxCurrent_10A;
 
-                    portENTER_CRITICAL(&mutex);
-                    DAC = local_DAC;
-                    portEXIT_CRITICAL(&mutex);
+                portENTER_CRITICAL(&mutex);
+                DAC = local_DAC;
+                portEXIT_CRITICAL(&mutex);
 
-                    dac.write(local_DAC);
-                }
-                break;
+                dac.write(local_DAC);
+            } break;
 
             case voltage:  // Constant Voltage (CV) Mode
-                {
-                    portENTER_CRITICAL(&mutex);
-                    unsigned long local_encoderPos = encoderPos;
-                    portEXIT_CRITICAL(&mutex);
+            {
+                portENTER_CRITICAL(&mutex);
+                unsigned long local_encoderPos = encoderPos;
+                portEXIT_CRITICAL(&mutex);
 
-                    set_voltage = local_encoderPos / 10.0;
-                    uint16_t local_DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
-                    if (local_DAC > DAC_MAX_CV_MODE) local_DAC = DAC_MAX_CV_MODE;
+                set_voltage = local_encoderPos / 10.0;
+                uint16_t local_DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
+                if (local_DAC > DAC_MAX_CV_MODE) local_DAC = DAC_MAX_CV_MODE;
 
-                    portENTER_CRITICAL(&mutex);
-                    DAC = local_DAC;
-                    portEXIT_CRITICAL(&mutex);
+                portENTER_CRITICAL(&mutex);
+                DAC = local_DAC;
+                portEXIT_CRITICAL(&mutex);
 
-                    dac.write(local_DAC);
-                }
-                break;
+                dac.write(local_DAC);
+            } break;
 
             case power: {  // Constant Power (CP) Mode, DUTcurrent = set_power/DUTV, @loop time speed
                 // Read all inputs in one critical section
@@ -646,7 +645,7 @@ void mainLoop(void* pvParameters) {
             case resistance: {  // Constant Resistance (CR) Mode
                 // In this mode, a small encoder value means a high current
                 // This mode starts with the encoder/DAC set at a safe current of 100mA based on the DUT voltage
-                
+
                 // Read all inputs in one critical section
                 portENTER_CRITICAL(&mutex);
                 unsigned long local_encoderPos = encoderPos;
@@ -655,7 +654,7 @@ void mainLoop(void* pvParameters) {
                 uint16_t local_DAC = DAC;
                 portEXIT_CRITICAL(&mutex);
 
-                if (nfetState == true) {  // only adjust the DAC when the DL is on.
+                if (nfetState == true) {                       // only adjust the DAC when the DL is on.
                     set_resistance = local_encoderPos / 10.0;  // encoderPos in Ohms (100mOhm or 1 Ohm clicks)
                     set_current = abs(local_dutV / set_resistance);
 
@@ -685,7 +684,7 @@ void mainLoop(void* pvParameters) {
                         local_DAC = local_DAC - currentDelta;
                     }
                 }
-                
+
                 // Safety limit check - always enforced regardless of NFET state
                 if (local_DAC > maxCurrent_4A) local_DAC = maxCurrent_4A;
 
