@@ -162,7 +162,7 @@ void batteryMode(void* pvParameters) {
                 tft.print(time_limit);
                 tft.print(" s");
                 tft.setCursor(0, 70);
-                tft.print("Recovery: ");
+                tft.print("RecTime: ");
                 tft.print(recovery_time_minutes);
                 tft.print(" min");
                 vTaskDelay(2000 / portTICK_PERIOD_MS);
