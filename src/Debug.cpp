@@ -2,7 +2,7 @@
  * @file Debug.cpp
  * @brief Debug utilities for serial monitor output
  * @author Paul Versteeg
- * @date 2024
+ * @date 2026
  *
  * Optional debugging functions for development and troubleshooting.
  * Uncomment send_to_monitor() call in mainLoop to enable.

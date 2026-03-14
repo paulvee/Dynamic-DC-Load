@@ -541,28 +541,51 @@ void mainLoop(void* pvParameters) {
         // Mode-specific control logic
         switch (mode) {
             case current:  // Constant Current (CC) Mode
-                portENTER_CRITICAL(&mutex);
-                set_current = encoderPos * EncoderRes;
-                DAC = set_current;
-                if (DAC > maxCurrent_10A) DAC = maxCurrent_10A;
-                portEXIT_CRITICAL(&mutex);
-                dac.write(DAC);
+                {
+                    portENTER_CRITICAL(&mutex);
+                    unsigned long local_encoderPos = encoderPos;
+                    portEXIT_CRITICAL(&mutex);
+
+                    set_current = local_encoderPos * EncoderRes;
+                    uint16_t local_DAC = set_current;
+                    if (local_DAC > maxCurrent_10A) local_DAC = maxCurrent_10A;
+
+                    portENTER_CRITICAL(&mutex);
+                    DAC = local_DAC;
+                    portEXIT_CRITICAL(&mutex);
+
+                    dac.write(local_DAC);
+                }
                 break;
 
             case voltage:  // Constant Voltage (CV) Mode
-                portENTER_CRITICAL(&mutex);
-                set_voltage = encoderPos / 10.0;
-                DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
-                if (DAC > DAC_MAX_CV_MODE) DAC = DAC_MAX_CV_MODE;
-                portEXIT_CRITICAL(&mutex);
-                dac.write(DAC);
+                {
+                    portENTER_CRITICAL(&mutex);
+                    unsigned long local_encoderPos = encoderPos;
+                    portEXIT_CRITICAL(&mutex);
+
+                    set_voltage = local_encoderPos / 10.0;
+                    uint16_t local_DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
+                    if (local_DAC > DAC_MAX_CV_MODE) local_DAC = DAC_MAX_CV_MODE;
+
+                    portENTER_CRITICAL(&mutex);
+                    DAC = local_DAC;
+                    portEXIT_CRITICAL(&mutex);
+
+                    dac.write(local_DAC);
+                }
                 break;
 
             case power: {  // Constant Power (CP) Mode, DUTcurrent = set_power/DUTV, @loop time speed
+                // Read all inputs in one critical section
                 portENTER_CRITICAL(&mutex);
-                set_power = encoderPos / 10.0;  // encoderPos is Watt in 100mW or 1W clicks
+                unsigned long local_encoderPos = encoderPos;
                 double local_dutPower = dutPower;
+                uint16_t local_DAC = DAC;
                 portEXIT_CRITICAL(&mutex);
+
+                // Calculate set point outside critical section
+                set_power = local_encoderPos / 10.0;  // encoderPos is Watt in 100mW or 1W clicks
 
                 // Multi-stage control algorithm using fixed steps for faster settling:
                 // Proportional control is too slow - use aggressive fixed steps instead
@@ -585,15 +608,15 @@ void mainLoop(void* pvParameters) {
                     powerDelta = 0;
                 }
 
-                portENTER_CRITICAL(&mutex);
+                // Update DAC based on power error
                 if (local_dutPower < set_power) {
-                    DAC = DAC + powerDelta;
+                    local_DAC = local_DAC + powerDelta;
                 } else if (local_dutPower > set_power) {
-                    DAC = DAC - powerDelta;
+                    local_DAC = local_DAC - powerDelta;
                 }
 
                 if (set_power == 0) {
-                    DAC = 0;
+                    local_DAC = 0;
                 }  // prevent an initial run-away when the power is applied
 
                 // special condition!
@@ -603,29 +626,37 @@ void mainLoop(void* pvParameters) {
                 // switch the DUT in over-current again. The only remedy is to completely dial the DL down to zero power
                 // and start the measurement again. The following code allows you to resume the measurement.
                 if ((nfetState == false) && (local_dutPower == 0)) {
-                    DAC = 0;
+                    local_DAC = 0;
                     set_power = 0;
                 }
 
-                if (DAC > DAC_MAX_CP_MODE) {
-                    DAC = DAC_MAX_CP_MODE;
+                if (local_DAC > DAC_MAX_CP_MODE) {
+                    local_DAC = DAC_MAX_CP_MODE;
                 }
+
+                // Write back DAC in single critical section
+                portENTER_CRITICAL(&mutex);
+                DAC = local_DAC;
                 portEXIT_CRITICAL(&mutex);
 
-                dac.write(DAC);  // output the DAC value
+                dac.write(local_DAC);  // output the DAC value
                 break;
             }
 
             case resistance: {  // Constant Resistance (CR) Mode
                 // In this mode, a small encoder value means a high current
                 // This mode starts with the encoder/DAC set at a safe current of 100mA based on the DUT voltage
-                if (nfetState == true) {  // only adjust the DAC when the DL is on.
-                    portENTER_CRITICAL(&mutex);
-                    set_resistance = encoderPos / 10.0;  // encoderPos in Ohms (100mOhm or 1 Ohm clicks)
-                    double local_dutV = dutV;
-                    double local_shuntV = shuntV;
-                    portEXIT_CRITICAL(&mutex);
+                
+                // Read all inputs in one critical section
+                portENTER_CRITICAL(&mutex);
+                unsigned long local_encoderPos = encoderPos;
+                double local_dutV = dutV;
+                double local_shuntV = shuntV;
+                uint16_t local_DAC = DAC;
+                portEXIT_CRITICAL(&mutex);
 
+                if (nfetState == true) {  // only adjust the DAC when the DL is on.
+                    set_resistance = local_encoderPos / 10.0;  // encoderPos in Ohms (100mOhm or 1 Ohm clicks)
                     set_current = abs(local_dutV / set_resistance);
 
                     // Multi-stage control algorithm using fixed steps for faster settling
@@ -648,19 +679,22 @@ void mainLoop(void* pvParameters) {
                         currentDelta = 0;
                     }
 
-                    portENTER_CRITICAL(&mutex);
                     if (local_shuntV < set_current) {
-                        DAC = DAC + currentDelta;  // increase the current
+                        local_DAC = local_DAC + currentDelta;  // increase the current
                     } else if (local_shuntV > set_current) {
-                        DAC = DAC - currentDelta;
+                        local_DAC = local_DAC - currentDelta;
                     }
-                    portEXIT_CRITICAL(&mutex);
                 }
+                
                 // Safety limit check - always enforced regardless of NFET state
+                if (local_DAC > maxCurrent_4A) local_DAC = maxCurrent_4A;
+
+                // Write back DAC in single critical section
                 portENTER_CRITICAL(&mutex);
-                if (DAC > maxCurrent_4A) DAC = maxCurrent_4A;
+                DAC = local_DAC;
                 portEXIT_CRITICAL(&mutex);
-                dac.write(DAC);  // output the DAC value
+
+                dac.write(local_DAC);  // output the DAC value
                 break;
             }
 

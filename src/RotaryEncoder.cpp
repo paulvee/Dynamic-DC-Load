@@ -2,7 +2,7 @@
  * @file RotaryEncoder.cpp
  * @brief Rotary encoder input handling with ISR and button processing
  * @author Paul Versteeg
- * @date 2024
+ * @date 2026
  *
  * Based on https://github.com/mo-thunderz/RotaryEncoder
  * ISR runtime: ~1.5µs

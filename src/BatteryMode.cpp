@@ -2,7 +2,7 @@
  * @file BatteryMode.cpp
  * @brief Battery discharge test mode implementation
  * @author Paul Versteeg
- * @date 2024
+ * @date 2026
  *
  * Based on design from John Lowen <john@vwlowen.co.uk>
  * http://www.vwlowen.co.uk/arduino/battery-tester/battery-tester.htm

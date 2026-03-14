@@ -1,8 +1,8 @@
 /**
  * @file OLEDDisplay.cpp
  * @brief OLED display update functions for SSD1351 128x128 RGB display
- * @author Paul Versteeg & Bud Bewley
- * @date 2024
+ * @author Paul Versteeg
+ * @date 2026
  *
  * This task runs on Core 1 (app_cpu) and updates the display every 100ms.
  * Critical measurements are shown immediately, less critical values every 500ms.

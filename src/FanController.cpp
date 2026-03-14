@@ -2,7 +2,7 @@
  * @file FanController.cpp
  * @brief Temperature-controlled fan management with PWM
  * @author Paul Versteeg
- * @date 2024
+ * @date 2026
  *
  * Controls fan speed based on heatsink temperature.
  * Runs as a separate RTOS task on application core.
