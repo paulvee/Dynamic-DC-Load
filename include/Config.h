@@ -2,7 +2,7 @@
  * @file Config.h
  * @brief Configuration, pins, and calibration constants for Dynamic Load
  * @author Paul Versteeg
- * @version 7.0.4b
+ * @version 7.0.4j
  * @date 2024
  */
 
@@ -12,7 +12,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.0.4b";
+const String FW_VERSION = "7.0.4j";
 
 //=============================================================================
 // PIN DEFINITIONS

@@ -149,19 +149,19 @@ void batteryMode(void* pvParameters) {
 
                 // Display received values for 2 seconds
                 tft.fillScreen(BLACK);
-                tft.setCursor(0, 10);
+                tft.setCursor(digit_1, line_2);
                 tft.print("Cur: ");
                 tft.print(target_mA);
                 tft.print(" mA");
-                tft.setCursor(0, 30);
+                tft.setCursor(digit_1, line_3);
                 tft.print("Cut: ");
                 tft.print(cutoff_voltage, 2);
                 tft.print(" V");
-                tft.setCursor(0, 50);
+                tft.setCursor(digit_1, line_4);
                 tft.print("T-limit: ");
                 tft.print(time_limit);
                 tft.print(" s");
-                tft.setCursor(0, 70);
+                tft.setCursor(digit_1, 80);
                 tft.print("RecTime: ");
                 tft.print(recovery_time_minutes);
                 tft.print("m");

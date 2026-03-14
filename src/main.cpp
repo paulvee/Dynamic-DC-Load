@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.3
+ * @version 7.0.4j
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.
@@ -355,7 +355,7 @@ void mainLoop(void* pvParameters) {
                     Serial.print("New mode = ");
                     Serial.println(modeStrings[mode]);
                     empty_avg_pool();
-                    
+
                     justSwitchedMode = true;
                 } else {
                     // Already in battery mode - reset for new test
@@ -381,7 +381,7 @@ void mainLoop(void* pvParameters) {
 
                 // Send acknowledgment - DL is ready to receive parameters
                 Serial.println("ACK_BT");
-                
+
                 // Delay after mode switch to allow "Waiting for parameters" message to be visible
                 if (justSwitchedMode) {
                     delay(1000);
@@ -567,7 +567,7 @@ void mainLoop(void* pvParameters) {
                 // Multi-stage control algorithm using fixed steps for faster settling:
                 // Proportional control is too slow - use aggressive fixed steps instead
                 double powerError = abs(set_power - local_dutPower);
-                
+
                 if (powerError > 2.0) {
                     // Very far from target: large fixed step for fast initial response
                     powerDelta = 100;
@@ -627,10 +627,10 @@ void mainLoop(void* pvParameters) {
                     portEXIT_CRITICAL(&mutex);
 
                     set_current = abs(local_dutV / set_resistance);
-                    
+
                     // Multi-stage control algorithm using fixed steps for faster settling
                     double currentError = abs(set_current - local_shuntV);
-                    
+
                     if (currentError > 0.2) {
                         // Very far from target: large fixed step for fast initial response
                         currentDelta = 100;
