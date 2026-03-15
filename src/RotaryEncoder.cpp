@@ -28,7 +28,7 @@ int encoderRes = 10;  // Multiplier: toggles between 10mA and 100mA step resolut
 // Maximum encoder position (16-bit DAC resolution)
 unsigned long maxEncPos = (int)(pow(2, 16) - 1);
 
-// Button state variables (timing constants now in Config.h)
+// Button state variables (timing constants are in Config.h)
 unsigned long pressedTime = 0;
 unsigned long releasedTime = 0;
 bool isPressing = false;
@@ -67,6 +67,7 @@ void IRAM_ATTR read_encoder() {
  * @param pvParameters Unused RTOS parameter
  */
 void process_encoder(void* pvParameters) {
+    // boot message with core info
     Serial.print("- Encoder task started, running on core ");
     Serial.println(xPortGetCoreID());
 

@@ -2,7 +2,6 @@
  * @file DynamicLoad.h
  * @brief Main declarations for Dynamic Load system
  * @author Paul Versteeg
- * @version 7.0.4j
  * @date 2026
  */
 
@@ -151,7 +150,7 @@ extern void batteryMode(void* pvParameters);
 
 // Fan controller functions (from FanController.h)
 extern void fanController(void* pvParameters);
-extern void TachCounter_ISR();
+extern void TachCounter_ISR();  // not used yet, but declared for future use
 
 // OLED display functions (from OLEDDisplay.h)
 extern void setup_oled();

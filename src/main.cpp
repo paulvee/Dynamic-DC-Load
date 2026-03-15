@@ -2,7 +2,6 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.4m
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.
@@ -98,7 +97,7 @@ long maxCurrent = 10.2;  // 10.2A
 long maxVoltage = 105;   // 105V
 long maxPower = 185;     // 185W
 long maxTemp = 95;       // 95°C
-long minVoltage = 0.7;   // 0.7V for NiCad/NiMH support
+long minVoltage = 0.7;   // 0.7V for 1.2V NiCad/NiMH support
 
 // Constants
 const double voltage_ref = 4.096;
@@ -135,7 +134,7 @@ int cancel = 0;
 bool in_recovery_mode = false;
 unsigned long recovery_start_millis = 0;
 
-// Communication watchdog - safety feature to abort test if PC disconnects
+// Communication watchdog - safety feature to abort Battery discharge test if PC disconnects
 volatile unsigned long lastSerialActivity = 0;
 const unsigned long COMM_WATCHDOG_TIMEOUT = 60000;  // 60 seconds in milliseconds
 
@@ -209,7 +208,7 @@ void setup() {
     pinMode(ENC_BUT, INPUT_PULLUP);
     pinMode(ENC_A, INPUT_PULLUP);
     pinMode(ENC_B, INPUT_PULLUP);
-    // Note: ISR attachment moved to process_encoder task for correct core affinity
+    // Note: ISR attachment is in process_encoder task for correct core affinity
 
     // Setup fan controller
     ledcSetup(FAN_PWM_CHANNEL, FAN_PWM_FREQ, FAN_PWM_RESOLUTION);
@@ -269,7 +268,7 @@ void setup() {
 
     // Configure Task Watchdog Timer for deadlock protection
     Serial.println("Configuring Watchdog Timer...");
-    esp_task_wdt_init(WDT_TIMEOUT, true);  // 5 second timeout, enable panic
+    esp_task_wdt_init(WDT_TIMEOUT, true);  // 5 second timeout, enable panic to reboot on timeout
     esp_task_wdt_add(NULL);                // Add current task (setup) to WDT
     Serial.println("Watchdog Timer enabled");
 
@@ -296,6 +295,7 @@ void loop() {
 //=============================================================================
 
 void mainLoop(void* pvParameters) {
+    // Boot message with core info
     Serial.print("- Main task started, running on core ");
     Serial.println(xPortGetCoreID());
 
@@ -410,7 +410,7 @@ void mainLoop(void* pvParameters) {
                 rawV = ADS.readADC(1);
 
                 if (rawV < 0) {
-                    // Negative voltage (reverse polarity)
+                    // Negative voltage (reverse polarity?) - turn everything off for safety
                     digitalWrite(NFET_OFF, HIGH);
                     digitalWrite(DUT_PWR, LOW);
                     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -478,6 +478,9 @@ void mainLoop(void* pvParameters) {
                 digitalWrite(NFET_OFF, HIGH);
 
                 // Mode switching logic
+                // This could look a little strange because the switch(mode) actually acivates the
+                // next mode, so the case labels are the "currently selected" mode, but the actions
+                // inside are for switching to the next mode
                 switch (mode) {
                     case current:
                         mode = voltage;
@@ -509,7 +512,7 @@ void mainLoop(void* pvParameters) {
 
                     case voltage:
                         mode = power;
-                        digitalWrite(CV_MODE, LOW);
+                        digitalWrite(CV_MODE, LOW);  // switch the DAC output back to current control mode
                         digitalWrite(NFET_OFF, HIGH);
                         portENTER_CRITICAL(&mutex);
                         encoderPos = 0;
@@ -576,7 +579,9 @@ void mainLoop(void* pvParameters) {
             }
         }
 
-        // Mode-specific control logic
+        // Mode-specific control logic. Here is where the actual work in the modes is done for each mode,
+        // using the measurements and set points to calculate the appropriate DAC value to
+        // write, with safety checks and multi-stage control for faster settling in CP and CR modes.
         switch (mode) {
             case current:  // Constant Current (CC) Mode
             {
@@ -681,7 +686,8 @@ void mainLoop(void* pvParameters) {
 
             case resistance: {  // Constant Resistance (CR) Mode
                 // In this mode, a small encoder value means a high current
-                // This mode starts with the encoder/DAC set at a safe current of 100mA based on the DUT voltage
+                // This mode starts with the encoder/DAC set at a safe current of 100mA based
+                // on the DUT voltage
 
                 // Read all inputs in one critical section
                 portENTER_CRITICAL(&mutex);
@@ -735,7 +741,7 @@ void mainLoop(void* pvParameters) {
             }
 
             case battery:  // Battery Test Mode (controlled by BatteryMode.cpp)
-                // Battery mode control is handled in BatteryMode task
+                // Battery mode control is handled in the BatteryMode task
                 break;
         }
 
@@ -769,7 +775,10 @@ void readDutV() {
     rawV = ADS.readADC(1);
     double local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
 
-    // Dynamically adjust gain based on the just measured voltage
+    // Dynamically adjust gain based on the just measured voltage, and then read
+    // the voltage again with the new gain setting for optimal resolution - this
+    // is important for accurate measurements and stable control in CP and CR modes
+    // across the wide voltage range (up to 100V)
     if (local_dutV > 99 && adcGain != 0) {
         ADS.setGain(0);
         adcGain = 0;
@@ -792,7 +801,7 @@ void readDutV() {
         local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
     }
 
-    // Turn on relay only with positive voltage
+    // Turn on relay only with a positive voltage
     if (rawV > 650) {
         digitalWrite(DUT_PWR, HIGH);
     }

@@ -8,6 +8,12 @@
  * http://www.vwlowen.co.uk/arduino/battery-tester/battery-tester.htm
  *
  * See blog: https://www.paulvdiyblogs.net/2019/03/a-pretty-universal-battery-cell-tester.html
+ *
+ * Because John is no longer with us, we have redesigned and ported the code from Delphi-7 Pascal
+ * to Python so it's easier to maintain and extend by us. There have been many changes to this code,
+ * like added battaery chemistries, automated setting the measurement up, added a recovery mode,
+ * added failsafes autoranging graphics, and the app can now start the Dynamic Load directly in
+ * the BT mode.
  */
 
 #include "BatteryMode.h"
@@ -46,6 +52,7 @@ void getTime();
  * @param pvParameters Unused RTOS parameter
  */
 void batteryMode(void* pvParameters) {
+    // boot message with core info
     Serial.print("- Battery mode task started, running on core ");
     Serial.println(xPortGetCoreID());
 
@@ -54,6 +61,9 @@ void batteryMode(void* pvParameters) {
     Serial.println("- Battery mode task resumed");
 
     // Subscribe to watchdog when battery mode becomes active
+    // this will terminate the DL when the communication fails or the app has been terminated
+    // to prevent the DL from running indefinitely and potentially damaging the battery or device
+    // under test
     esp_task_wdt_add(NULL);
     Serial.println("- Battery task added to watchdog");
 
@@ -105,6 +115,8 @@ void batteryMode(void* pvParameters) {
 
                     // Read first parameter - but check if it's AUTO_BT command first
                     // If Python app sends AUTO_BT before parameters, we need to acknowledge
+                    // that the AUTO_BT command is used when the app starts the DL directly in battery
+                    // mode, so it needs to be handled before reading parameters
                     if (Serial.peek() == 'A') {  // Might be "AUTO_BT"
                         String cmd = Serial.readStringUntil('\n');
                         cmd.trim();
@@ -196,9 +208,13 @@ void batteryMode(void* pvParameters) {
         digitalWrite(NFET_OFF, LOW);  // Turn on NFETs
         nfetState = !digitalRead(NFET_OFF);
 
-        // Calculate approximate target DAC for smooth ramp-up
+        // Calculate approximate target DAC for smooth discharge current ramp-up
         // Prevents current spike by ramping: 25% -> 50% -> 75% -> 100%
         // maxCurrent_10A (64000) corresponds to 10.2A (10200mA)
+        // Further down and in the main code we check that we stay within the maximum
+        // Power limits, so we can allow the user to set a target current up to 8A, but the DAC
+        // will be clamped to 4A when the total voltage exceeds 40V to stay within
+        // the 150W hardware limit
         long target_DAC = (long)((target_mA * 64000.0) / 10200.0);
         if (target_DAC > 64000) target_DAC = 64000;
 
@@ -239,7 +255,7 @@ void batteryMode(void* pvParameters) {
         // Main measurement loop
         while (!end_of_test && batteryModeActive && appPresence) {
             // Read shared variables with mutex protection
-            // Use filtered voltage (dispVoltage) for cutoff detection to avoid jitter
+            // Use filtered voltage (dispVoltage) for cutoff detection to avoid glitches and jitter
             double local_dutV, local_dispCurrent;
             portENTER_CRITICAL(&mutex);
             local_dutV = dispVoltage;         // Filtered with 16-sample moving average
@@ -339,7 +355,7 @@ void batteryMode(void* pvParameters) {
             }
 
             // Check communication watchdog (60 second timeout)
-            // Aborts test if PC app disconnects or crashes
+            // Aborts test if PC app disconnects, is terminated or crashes
             if ((!end_of_test) && (millis() - lastSerialActivity > COMM_WATCHDOG_TIMEOUT)) {
                 stop_oled_vars = true;
                 Serial.print("MSGSTComm Timeout - PC DisconnectedMSGEND");
@@ -480,7 +496,7 @@ void batteryMode(void* pvParameters) {
  * @brief Send measurement data to PC app
  *
  * Format: GRAPHVS<days>:<hours>:<mins>:<secs>!<mAh>!<current>!<voltage>GRAPHVEND
- * Current sent as integer to avoid regional decimal issues.
+ * Current sent as integer to avoid regional (. or ,)decimal issues.
  */
 void write_to_pc() {
     // Read shared variables with mutex protection

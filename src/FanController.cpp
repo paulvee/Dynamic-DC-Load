@@ -19,7 +19,7 @@
 // FAN VARIABLES
 //=============================================================================
 
-volatile int tachCount = 0;
+volatile int tachCount = 0;  // not used at the moment, but declared for future use
 
 //=============================================================================
 // FAN CONTROLLER TASK (Core 1)
@@ -36,6 +36,7 @@ volatile int tachCount = 0;
  * @param pvParameters Unused RTOS parameter
  */
 void fanController(void* pvParameters) {
+    // send at boot time
     Serial.print("- Fan controller task started, running on core ");
     Serial.println(xPortGetCoreID());
 
@@ -43,7 +44,7 @@ void fanController(void* pvParameters) {
     int _temp = 0;
 
     while (true) {
-        // Read temperature (local copy to reduce clobbering)
+        // Read temperature (into local copy to reduce clobbering)
         portENTER_CRITICAL(&mutex);
         _temp = int(temperature);
         portEXIT_CRITICAL(&mutex);

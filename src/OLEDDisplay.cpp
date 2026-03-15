@@ -63,6 +63,7 @@ String lltoString(unsigned long ll);
  */
 void updateOledDisplay(void* pvParameters) {
     Serial.print("- Display task started, running on core ");
+    // boot message with core info
     Serial.println(xPortGetCoreID());
 
     while (true) {
@@ -129,6 +130,13 @@ void updateOledDisplay(void* pvParameters) {
  * - CP mode: W (1 decimal)
  * - CR mode: R (1 or 2 decimals)
  * - BT mode: mA (target current)
+ *
+ * To reduce the flickering and overwriting of values we blank the area before printing
+ * and adjust the cursor position based on the number of digits.
+ * Mode-specific offsets are applied to keep values visually aligned within their fields.
+ * The encoder value is converted to the appropriate units based on the mode and displayed
+ * with the correct number of decimal places.
+ *
  */
 void send_encoder() {
     double displayVal = 0;
@@ -207,7 +215,7 @@ String lltoString(unsigned long ll) {
 }
 
 /**
- * @brief Display DAC setting (for debugging)
+ * @brief Display DAC setting (initially intended for debugging, but left it in)
  * Shows current DAC value (0-65535)
  */
 void send_dac() {
@@ -420,7 +428,9 @@ void send_state() {
 
 /**
  * @brief Draw degree symbol for temperature display
- * Creates a 3x3 pixel square with hollow center
+ * Creates a 3x3 pixel square with a hollow center, because I couldn't find a
+ * suitable font character that was visible at small sizes
+ *
  */
 void draw_degree_symbol() {
     // Draw 3x3 square
@@ -434,7 +444,7 @@ void draw_degree_symbol() {
 }
 
 /**
- * @brief Display current operating mode and set point suffix
+ * @brief Display current operating mode and Set point suffix
  * Shows CC, CV, CP, CR, or BT at left of power line
  */
 void send_mode() {
@@ -472,6 +482,7 @@ void send_mode() {
  * Called at startup and when exiting battery mode
  */
 void setup_oled() {
+    // boot message
     Serial.print("setup_oled ");
     digitalWrite(NFET_OFF, HIGH);  // Turn output off
 
@@ -554,6 +565,7 @@ void setup_oled() {
  * Shows welcome message with firmware version
  */
 void oled_prep() {
+    // boot message
     Serial.print("oled prep ");
 
     tft.fillScreen(BLACK);
