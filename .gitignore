@@ -58,6 +58,9 @@ dmypy.json
 *.manifest
 *.spec
 
+# Releases (use GitHub Releases instead)
+releases/
+
 # User Configuration - Ignore user-specific settings, track template only
 config.ini
 config.ini.bak
