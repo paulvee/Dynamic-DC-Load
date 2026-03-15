@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.4l
+ * @version 7.0.4m
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.

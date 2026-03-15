@@ -41,7 +41,7 @@ bool isLongDetected = false;
 /**
  * @brief Interrupt service routine for rotary encoder
  *
- * Handles both A and B pin changes. Filters debounce glitches.
+ * Handles both A and B pin changes.
  * Signals the process_encoder task to handle the update.
  */
 void IRAM_ATTR read_encoder() {
@@ -78,34 +78,9 @@ void process_encoder(void* pvParameters) {
     attachInterrupt(digitalPinToInterrupt(ENC_B), read_encoder, CHANGE);
     Serial.println("- Encoder ISRs attached on core 0");
 
-    // Variables for noise filtering during current transitions
-    static unsigned long encoderLockUntil = 0;
-    static bool prevCurrentFlowing = false;  // Track previous current state
-
     while (true) {
         // Wait for ISR signal
         if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE) {
-            // Check if encoder is locked due to recent current transition
-            if (millis() < encoderLockUntil) {
-                continue;  // Skip this encoder pulse during lockout period
-            }
-
-            // Check for current transition to lock encoder during NFET turn-on noise
-            portENTER_CRITICAL(&mutex);
-            double local_dispCurrent = dispCurrent;
-            portEXIT_CRITICAL(&mutex);
-
-            bool currentFlowing = (local_dispCurrent > 0.001);  // 1mA threshold
-            if (currentFlowing && !prevCurrentFlowing) {
-                // Current just started flowing - lock encoder for 500ms
-                encoderLockUntil = millis() + 500;
-                prevCurrentFlowing = true;
-                continue;  // Skip this pulse
-            } else if (!currentFlowing && prevCurrentFlowing) {
-                // Current just stopped - update state but don't lock
-                prevCurrentFlowing = false;
-            }
-
             // Lookup table for encoder state machine
             static uint8_t old_AB = 3;
             static int8_t encval = 0;

@@ -12,23 +12,23 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 ## Pre-Test Setup
 
 ### Hardware Requirements
-- [x] ESP32 Dynamic Load hardware connected
-- [x] Power supply available
+- [ ] ESP32 Dynamic Load hardware connected
+- [ ] Power supply available
 - [ ] Test battery (low capacity recommended, e.g., 200-500mAh)
-- [x] USB cable connected to PC
+- [ ] USB cable connected to PC
 - [ ] All safety connections verified
 
 ### Software Requirements
-- [x] Firmware v7.0.3 uploaded to ESP32
-- [x] Python Battery Tester app v2.0.h or later installed
-- [x] Serial port identified (e.g., COM3)
-- [x] Serial monitor available (Arduino IDE, PlatformIO, or Python app)
+- [ ] Firmware v7.0.4l uploaded to ESP32
+- [ ] Python Battery Tester app v2.0.h or later installed
+- [ ] Serial port identified (e.g., COM3)
+- [ ] Serial monitor available (Arduino IDE, PlatformIO, or Python app)
 
 ### Initial Verification
-- [x] Power on device - OLED displays correctly
-- [x] Rotary encoder responds to rotation and button press
-- [x] Fan operation normal
-- [x] No error messages on startup
+- [ ] Power on device - OLED displays correctly
+- [ ] Rotary encoder responds to rotation and button press
+- [ ] Fan operation normal
+- [ ] No error messages on startup
 
 ---
 
@@ -43,10 +43,10 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 3. Select each mode: CC, CV, CP, CR, Battery Test
 
 **Expected Results:**
-- [x] All modes accessible via rotary encoder
-- [x] OLED displays correct mode name
-- [x] No crashes or freezes
-- [x] Menu navigation is smooth
+- [ ] All modes accessible via rotary encoder
+- [ ] OLED displays correct mode name
+- [ ] No crashes or freezes
+- [ ] Menu navigation is smooth
 
 **Status:** ⬜ PASS  ⬜ FAIL  
 **Notes:** _______________________________________________
