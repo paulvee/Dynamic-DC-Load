@@ -35,9 +35,9 @@ This firmware implements a precision DC electronic load with multiple operating 
 - **ADC**: ADS1115 16-bit I²C ADC for voltage/current measurement
 - **DAC**: DAC8571 16-bit I²C DAC for load control
 - **Input**: Rotary encoder with dual-function push button
-- **Cooling**: Two PWM-controlled fans with tachometer feedback
+- **Cooling**: Two PWM-controlled fans
 - **Sensors**: LM35 temperature sensor on heatsink
-- **Power Stage**: N-FET based current sink with relay control
+- **Power Stage**: Dual N-FET based current sink with relay control
 
 ## Specifications
 
@@ -65,21 +65,22 @@ The battery test mode performs automated discharge testing with advanced monitor
 ### Features
 
 - **Configurable Chemistry**: Li-ion, LiPo, NiCd, NiMH, Lead Acid
-- **Cell Count Selection**: 1-10 cells (automatic voltage calculation)
+- **Cell Count Selection**: 1-10 cells (automatic total voltage calculation)
 - **Adjustable Parameters**: 
-  - Test current (0.1A - 10A)
+  - Test current (0.1A - 8A) (depending on total voltage 8A <40V, 4A >40V)
   - Cutoff voltage per cell
   - Recovery monitoring time (1-30 minutes, default 5)
 - **Recovery Monitoring**: Tracks voltage recovery after cutoff detection
 - **Real-Time Reporting**: Sends test progress to companion Python app
 - **Safe Termination**: Automatic load disconnect at cutoff
+- **Safe Termination**: Watchdog protection for communication loss
 
 ### Protocol
 
 Serial communication at 115200 baud, 10 parameters:
 1. Battery chemistry (0=Li-ion, 1=LiPo, 2=NiCd, 3=NiMH, 4=LeadAcid)
 2. Number of cells (1-10)
-3. Test current (0.1 - 10.0A)
+3. Test current (0.1 - 8.0A)
 4. Cutoff voltage per cell
 5. Auto-start delay (seconds)
 6. Warmup time (seconds)
@@ -90,7 +91,7 @@ Serial communication at 115200 baud, 10 parameters:
 
 ### Voltage Filtering
 
-Battery mode uses filtered voltage (`dispVoltage`) instead of raw readings (`dutV`) for cutoff detection. The 16-sample moving average eliminates jitter and prevents premature test termination.
+Battery mode uses filtered voltage (`dispVoltage`) instead of raw readings (`dutV`) for cutoff detection. The 16-sample moving average eliminates jitter and glitches to prevent premature test termination.
 
 ## Development
 
@@ -228,12 +229,12 @@ This firmware works with a **Python desktop application** for battery testing:
 ## Version History
 
 ### v7.0.4l (March 2026) - Current
-- ✨ **Added**: CV mode soft-start to eliminate 4A startup current surge
+- ✨ **Added**: CV mode soft-start to eliminate up to 4A startup current surge
 - 🔧 **Improved**: Simplified DAC settling approach (max DAC → delay → NFETs on → delay → target DAC)
 - 📊 **Calibrated**: CV mode trigger point accuracy to ±0.04V across voltage range
 - 🎯 **Accuracy**: Subsequent triggers within ±0.04V from 2V to 50V (first trigger ~0.15V offset)
 - ⚙️ **Code Quality**: Added DAC_MAX_VALUE constant, reduced CV safety margin to 102%
-- 🔧 **Calibration**: New `cvCalFactor` constant (1.0606) replaces legacy CUTIN values
+- 🔧 **Calibration**: Use `cvCalFactor` 
 - ⏱️ **Timing**: Optimized DAC settling delays for glitch-free CV mode activation
 
 ### v7.0.1 (March 2026)
@@ -245,9 +246,9 @@ This firmware works with a **Python desktop application** for battery testing:
 
 ### v7.0.0 (February 2026)
 - 🏗️ **Refactored**: Dual-core architecture with proper task distribution
-- 🔒 **Safety**: Added mutex protection for shared variables
+- 🔒 **Safety**: Added more mutex protection for shared variables
 - ⚡ **Performance**: Optimized main loop for consistent 18ms cycle time
-- 🧵 **Threading**: Moved display and fan control to Core 1
+- 🧵 **Threading**: Rotary encoder, display and fan control on Core 1
 - 📊 **Monitoring**: Enhanced thread safety in OLED display updates
 - 🎛️ **Watchdog**: Added ESP32 task watchdog timer support
 - 🔋 **Battery**: Added NiCd and NiMH chemistry support
@@ -255,7 +256,6 @@ This firmware works with a **Python desktop application** for battery testing:
 ### v6.4.26 (Legacy - Arduino IDE)
 - Final Arduino IDE-based version
 - Basic battery test functionality
-- Single-core operation
 - Available in public repository as `ESP32_V6_4_26b.zip`
 
 ## Migration from Arduino IDE
@@ -328,7 +328,7 @@ This project has been migrated from Arduino IDE to PlatformIO for better develop
 - Check cutoff voltage setting
 - Monitor for voltage drops under load
 
-**Problem:** CP/CR mode oscillation  
+**Problem:** CP/CR mode regulation  
 **Solution:**
 - Ensure main loop time stays around 18ms
 - Check that Core 0 is not overloaded
@@ -417,7 +417,7 @@ This is a personal project but suggestions and improvements are welcome:
 
 ## Acknowledgments
 
-- **Bud Bennett**: Collaborative hardware design and 3D enclosure
+- **Bud Bennett**: Collaborative hardware and software design and 3D enclosure
 - **PlatformIO**: Modern embedded development platform
 - **ESP32 Community**: FreeRTOS examples and dual-core patterns
 
@@ -450,10 +450,9 @@ Feel free to use, modify, and distribute for personal and educational purposes. 
 For questions, issues, or discussion:
 - **GitHub Issues**: Bug reports and feature requests
 - **Blog Comments**: General discussion on build process
-- **Email**: pw.versteeg@gmail.com
 
 ---
 
 **Last Updated**: March 2026  
-**Firmware Version**: 7.0.1  
+**Firmware Version**: 7.0.4l  
 **Status**: Active Development (Private Repository)
