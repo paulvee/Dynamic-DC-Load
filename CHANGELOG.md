@@ -4,6 +4,38 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.0.4l] - 2026-03-15
+
+### Added
+- **CV mode soft-start implementation** - Eliminates 4A startup current surge
+  - Simplified DAC settling: Write max DAC → 100ms delay → NFETs on → 50ms delay → target DAC → 100ms settle
+  - Total settling time ~250ms (much faster than previous ramp approach)
+  - No visible current glitches on oscilloscope waveform display
+  - `firstCVEntry` flag ensures special handling only on first activation
+
+### Changed
+- **CV mode calibration system** - New simplified calibration constant
+  - Replaced legacy `CUTIN_FUDGE` and `CV_CUTIN_VLT_FACTOR` with single `cvCalFactor` constant
+  - Calibrated to 1.0606 (from 1.054333) using 50V reference point
+  - Achieves ±0.04V accuracy on subsequent triggers across 2V-50V range
+  - First trigger shows ~0.15V fixed offset (acceptable, due to circuit settling)
+- **Code quality improvements**
+  - Added `DAC_MAX_VALUE = 65535` constant replacing hardcoded values (5 locations)
+  - Reduced CV mode safety margin from 105% to 102% for tighter control
+  - Improved code comments for CV mode voltage relationships
+
+### Technical Details
+- CV mode trigger accuracy tested at 2V, 25V, and 50V with consistent ±0.04V precision
+- Calibration procedure: Apply 50.0V @ 100mA, measure trigger voltage, calculate cvCalFactor = trigger_V / 50.0
+- Soft-start prevents inrush current to CV circuit capacitance during initial activation
+- Watchdog timer considerations handled (unnecessary with short ~250ms settling time)
+
+### Files Modified
+- `include/Config.h` - Added cvCalFactor = 1.0606, version bump to 7.0.4l
+- `src/main.cpp` - Simplified CV soft-start, DAC_MAX_VALUE constant, reduced safety margin
+
+---
+
 ## [7.0.3] - 2026-03-11
 
 ### Added

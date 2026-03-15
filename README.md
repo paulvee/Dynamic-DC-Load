@@ -1,6 +1,6 @@
 # Dynamic DC Load Firmware
 
-**Version:** 7.0.1  
+**Version:** 7.0.4l  
 **Platform:** ESP32 DevKit1 + PlatformIO  
 **Author:** Paul Versteeg
 
@@ -206,9 +206,11 @@ The system requires calibration for accurate measurements. See `include/Config.h
    - Fine-tune DAC output vs actual current
    - Ensures CC mode accuracy (typical: 0.9800 - 1.0200)
 
-4. **CV Mode Cut-In** (`CUTIN_FUDGE`, `CV_CUTIN_VLT_FACTOR`):
-   - Adjusts when CV mode activates
-   - Prevents oscillation at CV transition
+4. **CV Mode Calibration** (`cvCalFactor`):
+   - Calibrates CV mode trigger point accuracy
+   - Procedure: Set 50.0V @ 100mA, measure trigger voltage, calculate factor = trigger_voltage / 50.0
+   - Typical value: 1.0606 (v7.0.4l)
+   - Achieves ±0.04V accuracy on subsequent triggers across voltage range
 
 All calibration constants are stored in `Config.h` with inline documentation.
 
@@ -225,7 +227,16 @@ This firmware works with a **Python desktop application** for battery testing:
 
 ## Version History
 
-### v7.0.1 (March 2026) - Current
+### v7.0.4l (March 2026) - Current
+- ✨ **Added**: CV mode soft-start to eliminate 4A startup current surge
+- 🔧 **Improved**: Simplified DAC settling approach (max DAC → delay → NFETs on → delay → target DAC)
+- 📊 **Calibrated**: CV mode trigger point accuracy to ±0.04V across voltage range
+- 🎯 **Accuracy**: Subsequent triggers within ±0.04V from 2V to 50V (first trigger ~0.15V offset)
+- ⚙️ **Code Quality**: Added DAC_MAX_VALUE constant, reduced CV safety margin to 102%
+- 🔧 **Calibration**: New `cvCalFactor` constant (1.0606) replaces legacy CUTIN values
+- ⏱️ **Timing**: Optimized DAC settling delays for glitch-free CV mode activation
+
+### v7.0.1 (March 2026)
 - ✨ **Added**: Recovery monitoring with configurable timeout (1-30 minutes)
 - 🐛 **Fixed**: Premature cutoff detection using filtered voltage instead of raw
 - 🔧 **Improved**: Battery mode now uses `dispVoltage` (16-sample MA) for cutoff
