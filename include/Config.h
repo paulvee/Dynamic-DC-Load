@@ -12,7 +12,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.0.4k";
+const String FW_VERSION = "7.0.4l";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -113,7 +113,7 @@ const double DUTCurrent = 400.00;   // DAC-ADC calibration point (mV)
 const double shuntVcalib = 2.5000;  // Current display calibration factor
 
 // CV mode calibration
-const double cvCalFactor = 1.054333;  // CV cut-in voltage calibration factor
+const double cvCalFactor = 1.0606;  // Paul's CV trigger point voltage calibration factor
 
 //=============================================================================
 // DAC LIMIT CONSTANTS

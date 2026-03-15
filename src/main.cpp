@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main entry point for Dynamic Load firmware
  * @author Paul Versteeg
- * @version 7.0.4k
+ * @version 7.0.4l
  * @date 2026
  *
  * This firmware runs only on an ESP32 DevKit1 with dual cores and FreeRTOS.
@@ -62,6 +62,7 @@ bool nfetState = false;
 uint8_t adcGain = 0;
 uint8_t old_adcGain = 0;
 int tempUpdate = 0;
+bool firstCVEntry = true;  // Flag to handle first CV mode entry current surge
 
 // Measurements
 volatile double temperature = 0;
@@ -85,6 +86,7 @@ double set_resistance = 0.0;
 // DAC
 volatile uint16_t DAC = 0;
 volatile uint16_t prev_DAC = 0;
+const uint16_t DAC_MAX_VALUE = 65535;  // 16-bit DAC maximum value
 
 // Regulation
 double powerDelta = 0.0;
@@ -418,13 +420,46 @@ void mainLoop(void* pvParameters) {
                     digitalWrite(DUT_PWR, HIGH);
                     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-                    digitalWrite(NFET_OFF, !digitalRead(NFET_OFF));
-                    vTaskDelay(100 / portTICK_PERIOD_MS);
-                    nfetState = !digitalRead(NFET_OFF);
+                    // First time turning on in CV mode: soft-start to prevent up to 4A current surge
+                    if (mode == voltage && firstCVEntry && digitalRead(NFET_OFF) == HIGH) {
+                        // Calculate target DAC value
+                        portENTER_CRITICAL(&mutex);
+                        unsigned long local_encoderPos = encoderPos;
+                        portEXIT_CRITICAL(&mutex);
 
-                    // In CV mode, give extra time for circuit to settle
-                    if (mode == voltage && nfetState) {
-                        vTaskDelay(200 / portTICK_PERIOD_MS);
+                        double target_voltage = local_encoderPos / 10.0;
+                        uint16_t target_DAC = int(target_voltage / 10 / maxVoltage * DAC_MAX_VALUE * cvCalFactor);
+                        if (target_DAC > DAC_MAX_CV_MODE) target_DAC = DAC_MAX_CV_MODE;
+
+                        // Start with maximum DAC value (maximum voltage target above DUT voltage)
+                        // This helps to remove the turn-on current spike by starting with a high voltage target that is above the DUT voltage, so there is no initial current flow when NFETs turn on - then we ramp down to the actual target voltage
+                        dac.write(DAC_MAX_VALUE);
+                        vTaskDelay(100 / portTICK_PERIOD_MS);  // make sure it has settled
+
+                        // Turn on NFETs
+                        digitalWrite(NFET_OFF, LOW);
+                        vTaskDelay(50 / portTICK_PERIOD_MS);  // Get rid of a current glitch on turn-on
+
+                        // Set final target Set value
+                        portENTER_CRITICAL(&mutex);
+                        DAC = target_DAC;
+                        portEXIT_CRITICAL(&mutex);
+                        dac.write(target_DAC);
+
+                        vTaskDelay(100 / portTICK_PERIOD_MS);  // let the DAC settle at the target voltage before allowing any adjustments
+                        nfetState = true;
+
+                        firstCVEntry = false;  // Only do the the first time we enter CV mode to prevent current spike on every toggle
+                    } else {
+                        // Normal operation
+                        digitalWrite(NFET_OFF, !digitalRead(NFET_OFF));
+                        vTaskDelay(100 / portTICK_PERIOD_MS);
+                        nfetState = !digitalRead(NFET_OFF);
+
+                        // In CV mode, give extra time for circuit to settle
+                        if (mode == voltage && nfetState) {
+                            vTaskDelay(200 / portTICK_PERIOD_MS);
+                        }
                     }
                 }
             }
@@ -451,11 +486,12 @@ void mainLoop(void* pvParameters) {
 
                         // Calculate and set the correct DAC value immediately to avoid large step change
                         if (dutV > minVoltage) {
-                            // Set encoder to 105% of DUT voltage for safety margin
-                            double target_voltage = dutV * 1.05;
+                            // Set encoder to 102% of DUT voltage for safety margin,
+                            // so there is no current flowing when we switch to CV mode - prevents large current spike if DUT voltage is close to target voltage
+                            double target_voltage = dutV * 1.02;
                             portENTER_CRITICAL(&mutex);
-                            encoderPos = dutV * 105;
-                            DAC = int(target_voltage / maxVoltage * 65535 * cvCalFactor);
+                            encoderPos = dutV * 102;
+                            DAC = int(target_voltage / maxVoltage * DAC_MAX_VALUE * cvCalFactor);
                             if (DAC > DAC_MAX_CV_MODE) DAC = DAC_MAX_CV_MODE;
                             portEXIT_CRITICAL(&mutex);
                         } else {
@@ -479,6 +515,7 @@ void mainLoop(void* pvParameters) {
                         encoderPos = 0;
                         DAC = 0;
                         portEXIT_CRITICAL(&mutex);
+                        firstCVEntry = true;  // Reset flag when leaving CV mode
                         break;
 
                     case power:
@@ -565,7 +602,7 @@ void mainLoop(void* pvParameters) {
                 portEXIT_CRITICAL(&mutex);
 
                 set_voltage = local_encoderPos / 10.0;
-                uint16_t local_DAC = int(set_voltage / 10 / maxVoltage * 65535 * cvCalFactor);
+                uint16_t local_DAC = int(set_voltage / 10 / maxVoltage * DAC_MAX_VALUE * cvCalFactor);
                 if (local_DAC > DAC_MAX_CV_MODE) local_DAC = DAC_MAX_CV_MODE;
 
                 portENTER_CRITICAL(&mutex);
