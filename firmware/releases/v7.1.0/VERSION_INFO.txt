@@ -1,0 +1,167 @@
+Dynamic DC Load Firmware - Version 7.1.1
+=========================================
+
+Release Date: March 16, 2026
+Build: ESP32 DevKit1, Arduino Framework
+Repository: https://github.com/paulvee/DL-Firmware-for-VSC
+
+---
+
+WHAT'S NEW IN v7.1.1
+--------------------
+
+Bug Fixes:
+  • Fan control in calibration mode now works correctly
+    - Moved fan PWM channel setup earlier in boot sequence
+    - Previously ledcWrite() had no effect because channel wasn't configured yet
+    - Fan now reliably stops when entering calibration mode for quiet operation
+
+Changes:
+  • Version numbering switched to numeric patch versions only
+    - Modified increment_version.py to increment patch number (X.Y.Z → X.Y.Z+1)
+    - Cleaner version scheme aligned with semantic versioning standards
+    - No more letter suffixes (a, b, c, etc.)
+
+---
+
+v7.1.0 FEATURES (INCLUDED)
+---------------------------
+
+Major Feature - Runtime Calibration System:
+  • Boot-time calibration mode (hold encoder button during power-on)
+  • Serial command interface with 8 commands
+    - CAL SHOW: Display current calibration values
+    - CAL CV/DUTV/DUTC/SHUNT <value>: Set calibration parameters
+    - CAL SAVE: Persist values to ESP32 NVS storage
+    - CAL RESET: Restore factory defaults
+    - CAL EXIT: Exit calibration mode
+  • ESP32 Preferences (NVS) storage - survives firmware updates
+  • Case-insensitive commands with backspace and Ctrl-C support
+  • Four calibration parameters: dutVcalib, DUTCurrent, shuntVcalib, cvCalFactor
+  • Two-stage display: Simple welcome → Full command menu
+  • Two exit methods: Button click (continue boot) or CAL EXIT (power cycle)
+  • Fan automatically stopped during calibration mode
+  • Binary distribution friendly - no development tools needed
+
+Storage Technology:
+  • ESP32 NVS partition in "dl_cal" namespace
+  • Persists across firmware updates, OTA updates, and reflashing
+  • Double precision floating point (15+ significant digits)
+
+Documentation:
+  • Added CALIBRATION_GUIDE.md with comprehensive procedures
+  • Added data/README.md with user-friendly instructions
+  • Updated all comments to reflect Preferences storage
+
+---
+
+SYSTEM REQUIREMENTS
+-------------------
+
+Hardware:
+  • ESP32 DevKit1 (ESP32-D0WD-V3 or compatible)
+  • 4MB Flash memory
+  • USB cable for programming
+
+Software (for flashing):
+  • Python 3.x with esptool.py
+  • OR use included flash_firmware.bat (Windows)
+  • Serial terminal for calibration (9600 baud)
+    - PuTTY, Arduino IDE Serial Monitor, or any terminal emulator
+
+---
+
+CALIBRATION OVERVIEW
+--------------------
+
+Entering Calibration Mode:
+  1. Power off ESP32
+  2. Press and hold encoder button
+  3. Power on ESP32 (keep holding button)
+  4. Wait for "CALIBRATION MODE" screen
+  5. Release button after screen appears
+
+Serial Commands (9600 baud):
+  • Type "CAL" alone to show command menu
+  • Example: "CAL CV 1.0606" to set CV calibration factor
+  • Must use "CAL SAVE" to persist changes
+  • Use "CAL EXIT" to exit and require power cycle
+  • Or click button to cancel and continue boot
+
+Most Common Calibrations:
+  • cvCalFactor: CV mode trigger point (typically 1.0 to 1.10)
+  • dutVcalib: DUT voltage display accuracy (typically 0.99 to 1.01)
+  • shuntVcalib: Current display accuracy (typically 2.45 to 2.55)
+
+See CALIBRATION_GUIDE.md in repository for detailed procedures.
+
+---
+
+TECHNICAL SPECIFICATIONS
+------------------------
+
+Firmware Build:
+  • Version: 7.1.1
+  • Build Date: March 16, 2026
+  • Platform: ESP32 DevKit1 @ 240MHz dual-core
+  • Framework: Arduino for ESP32 v3.20017.241212
+  • Toolchain: xtensa-esp32 8.4.0+2021r2-patch5
+
+Memory Usage:
+  • Flash: 363,073 bytes (27.7% of 1,310,720 bytes)
+  • RAM: 23,544 bytes (7.2% of 327,680 bytes)
+
+Libraries:
+  • Preferences @ 2.0.0 (NEW - calibration storage)
+  • ezButton @ 1.0.6
+  • Adafruit SSD1351 @ 1.3.3
+  • Adafruit GFX @ 1.12.5
+  • ADS1X15 @ 0.5.4
+  • DAC8571 @ 0.1.3
+  • MovingAverage @ 1.2.1
+  • SPI @ 2.0.0
+  • Wire @ 2.0.0
+
+Binary Addresses:
+  • Bootloader: 0x1000 (17,536 bytes)
+  • Partitions: 0x8000 (3,072 bytes)
+  • Boot App: 0xe000 (8,192 bytes)
+  • Firmware: 0x10000 (363,073 bytes)
+
+---
+
+KNOWN ISSUES
+------------
+
+None.
+
+---
+
+UPGRADE NOTES
+-------------
+
+From v7.1.0 to v7.1.1:
+  • Simple bug fix release - no breaking changes
+  • Calibration values preserved during upgrade
+  • No recalibration needed
+
+From v7.0.x to v7.1.x:
+  • Calibration system completely new
+  • Old Config.h calibration constants no longer used
+  • Recommend entering calibration mode and setting custom values
+  • cvCalFactor default changed from 1.0606 to 1.0 (calibrate your hardware)
+
+---
+
+SUPPORT
+-------
+
+For issues, questions, or contributions:
+  • GitHub: https://github.com/paulvee/DL-Firmware-for-VSC
+  • Documentation: See CALIBRATION_GUIDE.md in repository
+  • Battery Tester App: https://github.com/paulvee/BatteryTester
+
+---
+
+Copyright © 2026 Paul Versteeg
+Released under open source license (see repository for details)
