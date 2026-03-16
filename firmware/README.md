@@ -13,10 +13,10 @@ This directory contains the ESP32 firmware for the Dynamic DC Load controller.
 ### For End Users (Pre-compiled Binaries)
 If you just want to flash the firmware without building from source:
 
-1. Go to [**releases/v7.1.0/**](releases/v7.1.0/)
+1. Go to [**releases/v7.1.1/**](releases/v7.1.1/)
 2. Download all files in that folder
-3. Follow instructions in [releases/v7.1.0/README.md](releases/v7.1.0/README.md)
-4. For calibration, see [releases/v7.1.0/QUICK_START.txt](releases/v7.1.0/QUICK_START.txt)
+3. Follow instructions in [releases/v7.1.1/README.md](releases/v7.1.1/README.md)
+4. For calibration, see [releases/v7.1.1/QUICK_START.txt](releases/v7.1.1/QUICK_START.txt)
 
 ### For Developers (Build from Source)
 If you want to modify or build the firmware yourself:
@@ -49,7 +49,7 @@ If you want to modify or build the firmware yourself:
 - ✅ **Switched to numeric patch versions** (X.Y.Z format)
   - No more letter suffixes for cleaner semantic versioning
 
-### v7.1.0 Features (Included)
+### v7.1.1 Features (Included)
 - 🎛️ **Runtime calibration system** - Calibrate without recompilation
 - 💾 **ESP32 Preferences (NVS)** - Persistent storage across firmware updates
 - 🖥️ **Serial command interface** - 8 calibration commands via terminal
@@ -84,7 +84,7 @@ firmware/
 │   └── DL_Cal_Values.ini     # Calibration template (reference)
 │
 ├── releases/                 # Pre-compiled binaries
-│   └── v7.1.0/               # Latest release
+│   └── v7.1.1/               # Latest release
 │       ├── firmware.bin      # Main firmware
 │       ├── bootloader.bin    # ESP32 bootloader
 │       ├── partitions.bin    # Partition table
@@ -127,7 +127,7 @@ The firmware includes a comprehensive runtime calibration system that doesn't re
 - `CAL EXIT` - Exit (power cycle required)
 
 ### Documentation
-- **Quick Reference:** [releases/v7.1.0/QUICK_START.txt](releases/v7.1.0/QUICK_START.txt)
+- **Quick Reference:** [releases/v7.1.1/QUICK_START.txt](releases/v7.1.1/QUICK_START.txt)
 - **Complete Guide:** [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md)
 - **User Guide:** [data/README.md](data/README.md)
 
@@ -199,8 +199,8 @@ This firmware works with:
 - [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) - Detailed calibration procedures
 - [TEST_PLAN.md](TEST_PLAN.md) - Testing and validation
 - [data/README.md](data/README.md) - User calibration guide
-- [releases/v7.1.0/README.md](releases/v7.1.0/README.md) - Flash instructions
-- [releases/v7.1.0/VERSION_INFO.txt](releases/v7.1.0/VERSION_INFO.txt) - Release notes
+- [releases/v7.1.1/README.md](releases/v7.1.1/README.md) - Flash instructions
+- [releases/v7.1.1/VERSION_INFO.txt](releases/v7.1.1/VERSION_INFO.txt) - Release notes
 
 ---
 
