@@ -72,7 +72,7 @@ Adjusts the DUT voltage reading calibration.
 ```
 CAL DUTC 400.00
 ```
-Sets the DAC-ADC calibration reference (rarely needs adjustment).
+deviation is stored here, but not used.
 
 ### Set Current Display Calibration
 ```
@@ -84,7 +84,7 @@ Adjusts the current reading calibration.
 ```
 CAL SAVE
 ```
-**Important:** Values are NOT saved until you run this command. Changes are temporary until saved.
+**Important:** Values are NOT saved until you run this command. Changes are temporary until saved with CAL SAVE.
 
 ### Reset to Factory Defaults
 ```
@@ -142,6 +142,9 @@ Exiting calibration mode - power cycle to restart
 ### CV Mode Calibration (Most Common)
 
 **Problem:** CV mode triggers at wrong voltage (e.g., set 50V but triggers at 53V)
+
+**Note:** For an extended and detailed description of CV mode calibration, see the blog post:
+https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
 
 **Procedure:**
 1. Apply a known voltage from a calibrated power supply (e.g., 50.00V)
