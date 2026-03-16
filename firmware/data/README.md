@@ -4,7 +4,7 @@ This folder contains a reference `.ini` file showing the calibration parameter f
 
 ## Calibration System Overview
 
-The Dynamic Load firmware (v7.0.4+) uses **ESP32 Preferences (NVS storage)** for calibration values. This means:
+The Dynamic Load firmware (v7.1.1+) uses **ESP32 Preferences (NVS storage)** for calibration values. This means:
 - ✅ No filesystem uploads needed
 - ✅ Values persist across firmware updates
 - ✅ Calibrate via serial commands only
@@ -25,12 +25,11 @@ This file shows the format of calibration parameters but is **not read by the fi
 
 ### Step 1: Enter Calibration Mode
 
-1. Power off the Dynamic Load
+1. Power off the Dynamic Load and disconnect the serial cable
 2. **Press and hold the encoder button**
 3. Power on while continuing to hold the button
 4. Keep holding until you see "CALIBRATION MODE" on the display
-5. Release the button
-6. Connect a serial terminal (9600 baud)
+5. Release the button and connect a serial terminal (9600 baud)
 
 **Timing tip:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed through power-on.
 
