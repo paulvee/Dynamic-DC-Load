@@ -1,11 +1,11 @@
-# Test Plan - Dynamic DC Load Firmware v7.0.3
+# Test Plan - Dynamic DC Load Firmware v7.1.1
 
-Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
+Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
 
 **Test Date:** _______________  
 **Tester:** _______________  
-**Firmware Version:** 7.0.3b  
-**Python App Version:** _______________
+**Firmware Version:** 7.1.1  
+**Batt Test app Version:** _______________
 
 ---
 
@@ -19,10 +19,18 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 - [ ] All safety connections verified
 
 ### Software Requirements
-- [ ] Firmware v7.0.4l uploaded to ESP32
-- [ ] Python Battery Tester app v2.0.h or later installed
+- [ ] Firmware v7.1.1 uploaded to ESP32
+- [ ] Batt Test app v2.0.h or later installed
 - [ ] Serial port identified (e.g., COM3)
-- [ ] Serial monitor available (Arduino IDE, PlatformIO, or Python app)
+- [ ] Serial monitor available (PuTTY, Arduino IDE, PlatformIO, or Batt Test app)
+
+### Calibration
+- [ ] System calibration completed per CALIBRATION_GUIDE.md
+- [ ] CV mode calibration factor verified (most common adjustment)
+- [ ] Voltage and current display accuracy checked against calibrated DMM
+- [ ] Calibration values saved to ESP32 NVS storage with CAL SAVE command
+
+**Note:** Calibration is critical for accurate operation. Refer to CALIBRATION_GUIDE.md for complete procedures.
 
 ### Initial Verification
 - [ ] Power on device - OLED displays correctly
@@ -94,7 +102,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 2.1: Recovery Countdown Display
 **Steps:**
-1. Start battery test via Python app
+1. Start battery test via Batt Test app
 2. Set recovery_time to 2 minutes (parameter 9)
 3. Wait for battery to reach cutoff voltage
 4. Observe recovery countdown
@@ -194,13 +202,13 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ## Test Suite 4: Auto Mode Switch (v7.0.2)
 
-**Purpose:** Verify automatic switching to Battery Test mode when Python app sends AUTO_BT command
+**Purpose:** Verify automatic switching to Battery Test mode when Batt Test app sends AUTO_BT command
 
 ### Test 4.1: Manual Mode - Verify No Auto-Switch
 **Steps:**
 1. Power on ESP32
 2. Manually navigate to CC mode (not Battery Test mode)
-3. Do NOT start Python app
+3. Do NOT start Batt Test app
 4. Wait 30 seconds
 
 **Expected Results:**
@@ -217,16 +225,16 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 ### Test 4.2: Auto Mode Switch from Idle
 **Steps:**
 1. Power on ESP32 (leave in main menu or any mode)
-2. Open Python Battery Tester app
+2. Open Batt Test app
 3. Configure test parameters
 4. Click "Start Test" button
 5. Observe ESP32 OLED display
 
 **Expected Results:**
-- [ ] Python app sends AUTO_BT command
+- [ ] Batt Test app sends AUTO_BT command
 - [ ] ESP32 automatically switches to Battery Test mode
 - [ ] ESP32 responds with ACK_BT
-- [ ] Python app receives acknowledgment
+- [ ] Batt Test app receives acknowledgment
 - [ ] Test starts without manual mode selection
 - [ ] OLED shows "Battery Test" mode
 
@@ -239,7 +247,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 **Steps:**
 1. Manually select CV mode on ESP32
 2. Leave device in CV mode (not running a test)
-3. Start test from Python app
+3. Start test from Batt Test app
 
 **Expected Results:**
 - [ ] Device automatically switches from CV to Battery Test mode
@@ -253,7 +261,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 4.4: Firmware Upload Compatibility
 **Steps:**
-1. Close Python app completely
+1. Close Batt Test app completely
 2. Use PlatformIO or Arduino IDE to upload firmware
 3. Observe upload process
 
@@ -274,14 +282,14 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 5.1: Normal Operation with Heartbeat
 **Steps:**
-1. Start battery test from Python app
+1. Start battery test from Batt Test app
 2. Let test run for 5 minutes
 3. Observe normal operation
 4. Monitor serial communication (optional: use serial monitor)
 
 **Expected Results:**
 - [ ] Test runs normally
-- [ ] Python app sends HB (heartbeat) every 30 seconds
+- [ ] Batt Test app sends HB (heartbeat) every 30 seconds
 - [ ] ESP32 receives heartbeats (updates lastSerialActivity)
 - [ ] No timeout errors
 - [ ] Test completes or continues normally
@@ -294,7 +302,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 5.2: Communication Timeout - Cable Disconnect
 **Steps:**
-1. Start battery test from Python app
+1. Start battery test from Batt Test app
 2. Wait 30 seconds for test to stabilize
 3. **Carefully disconnect USB cable** (safety: use low current/low capacity battery)
 4. Wait 60-70 seconds
@@ -317,15 +325,15 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 5.3: Communication Timeout - App Crash Simulation
 **Steps:**
-1. Start battery test from Python app
+1. Start battery test from Batt Test app
 2. Wait 30 seconds
-3. **Force close Python app** (Task Manager or Alt+F4)
+3. **Force close Batt Test app** (Task Manager or Alt+F4)
 4. Do NOT disconnect USB cable
 5. Wait 60-70 seconds
 6. Observe ESP32 behavior
 
 **Expected Results:**
-- [ ] Python app closes/crashes
+- [ ] Batt Test app closes/crashes
 - [ ] Heartbeat stops being sent
 - [ ] After ~60 seconds, ESP32 watchdog triggers
 - [ ] Test aborts with timeout message
@@ -341,7 +349,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 **Steps:**
 1. Start battery test
 2. Wait 45 seconds (close to timeout)
-3. Send manual serial command from Python app or serial monitor (e.g., parameters update)
+3. Send manual serial command from Batt Test app or serial monitor (e.g., parameters update)
 4. Wait another 45 seconds
 5. Send another command
 6. Repeat for 3 minutes total
@@ -361,7 +369,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 **Steps:**
 1. Start battery test
 2. Wait 30 seconds
-3. Click "Cancel" button in Python app (or send 999 command)
+3. Click "Cancel" button in Batt Test app (or send 999 command)
 4. Verify test stops immediately
 
 **Expected Results:**
@@ -400,7 +408,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 6.1: Complete Battery Test with All Features
 **Steps:**
-1. Start Python Battery Tester app
+1. Start Batt Test app
 2. Configure test:
    - Discharge current: 0.5A
    - Cutoff voltage: 3.0V
@@ -429,7 +437,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ### Test 6.2: Rapid Test Start/Stop Cycles
 **Steps:**
-1. Start test from Python app
+1. Start test from Batt Test app
 2. After 10 seconds, cancel test
 3. Immediately start new test
 4. Repeat 5 times
@@ -466,48 +474,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ---
 
-## Test Suite 7: Backward Compatibility
-
-**Purpose:** Verify compatibility with older Python app versions
-
-### Test 7.1: Legacy Python App (without AUTO_BT)
-**Setup:** Use Python app version < 2.0.h (if available, or manually disable AUTO_BT)
-
-**Steps:**
-1. Manually select Battery Test mode on ESP32
-2. Send test parameters from old Python app
-3. Run complete test
-
-**Expected Results:**
-- [ ] Manual mode selection still works
-- [ ] Old Python app works without AUTO_BT command
-- [ ] Test executes normally
-- [ ] Full backward compatibility maintained
-
-**Status:** ⬜ PASS  ⬜ FAIL  ⬜ N/A (no old version available)  
-**Notes:** _______________________________________________
-
----
-
-### Test 7.2: Legacy Python App (without Heartbeat)
-**Setup:** Use Python app without heartbeat feature
-
-**Steps:**
-1. Start test with app that doesn't send HB commands
-2. Test should timeout after 60 seconds
-
-**Expected Results:**
-- [ ] Test starts normally
-- [ ] After 60 seconds, watchdog triggers timeout
-- [ ] Test aborts safely
-- [ ] User knows they need to upgrade Python app
-
-**Status:** ⬜ PASS  ⬜ FAIL  ⬜ N/A  
-**Notes:** _______________________________________________
-
----
-
-## Test Suite 8: Edge Cases and Error Conditions
+## Test Suite 7: Edge Cases and Error Conditions
 
 ### Test 8.1: Battery Removal During Test
 **Steps:**
@@ -530,7 +497,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 ### Test 8.2: Parameter Update During Test
 **Steps:**
 1. Start test
-2. While running, send new test parameters from Python app
+2. While running, send new test parameters from Batt Test app
 3. Observe behavior
 
 **Expected Results:**
@@ -595,9 +562,9 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ---
 
-## Test Suite 9: Performance and Stability
+## Test Suite 8: Performance and Stability
 
-### Test 9.1: RTOS Task Performance
+### Test 8.1: RTOS Task Performance
 **Steps:**
 1. Run any test
 2. Observe OLED update rate
@@ -615,7 +582,7 @@ Comprehensive testing plan for firmware changes from v7.0.0 to v7.0.3
 
 ---
 
-### Test 9.2: Memory Stability
+### Test 8.2: Memory Stability
 **Steps:**
 1. Run multiple tests back-to-back
 2. Monitor for any degradation
@@ -692,6 +659,7 @@ ________________________________________________________________
 
 ---
 
-*Test Plan Version: 1.0*  
+*Test Plan Version: 1.1*  
 *Created: March 11, 2026*  
-*For Firmware: v7.0.3*
+*Updated: March 16, 2026*  
+*For Firmware: v7.1.1*
