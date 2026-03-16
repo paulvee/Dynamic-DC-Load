@@ -18,7 +18,7 @@ The following values can be calibrated:
 | Parameter | Description | Default | Notes |
 |-----------|-------------|---------|-------|
 | `dutVcalib` | DUT voltage display calibration | 1.0 | Adjust if voltage reading is incorrect |
-| `DUTCurrent` | DAC-ADC calibration point (mV) | 400.00 | Factory calibrated |
+| `DUTCurrent` | DAC-ADC calibration point (mV) | 400.00 | deviation stored, but not used |
 | `shuntVcalib` | Current display calibration | 2.5000 | Adjust if current reading is incorrect |
 | `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | **Most commonly adjusted** |
 
@@ -31,7 +31,7 @@ The following values can be calibrated:
 3. **Power on** while continuing to hold the button
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
 5. **Release** the button
-6. **Connect** a serial terminal (115200 baud, COM port varies)
+6. **Connect** a serial terminal (9600 baud, COM port varies)
 
 **Important Timing:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
@@ -243,7 +243,7 @@ If values show as defaults, calibration was not saved - repeat `CAL SAVE`.
 **Symptoms:** No echo, garbled text
 
 **Solutions:**
-- Verify baud rate: 115200
+- Verify baud rate: 9600
 - Try different serial terminal (PuTTY, Arduino IDE, PlatformIO)
 - Check COM port is correct
 - Try disconnect/reconnect USB
