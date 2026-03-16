@@ -77,7 +77,7 @@ The battery test mode performs automated discharge testing with advanced monitor
 
 ### Protocol
 
-Serial communication at 115200 baud, 10 parameters:
+Serial communication at 9600 baud, 10 parameters:
 1. Battery chemistry (0=Li-ion, 1=LiPo, 2=NiCd, 3=NiMH, 4=LeadAcid)
 2. Number of cells (1-10)
 3. Test current (0.1 - 8.0A)
@@ -148,7 +148,7 @@ pio run
 pio run --target upload
 
 # Monitor serial output
-pio device monitor --baud 115200
+pio device monitor --baud 9600
 
 # Build and upload in one command
 pio run --target upload --target monitor
@@ -396,7 +396,7 @@ This is a high-power electronic device that can dissipate up to 185W. Improper u
 
 - **Main loop timing**: Can vary under heavy I²C traffic; affects CP/CR regulation accuracy
 - **Fan tachometer**: Not currently implemented in firmware
-- **Serial baud rate**: Battery test uses 115200 baud (was 9600 in early versions)
+- **Serial baud rate**: Battery test uses 9600 baud
 - **Arduino library dependencies**: Some libraries pulled in entire Arduino framework
 
 ## Contributing
