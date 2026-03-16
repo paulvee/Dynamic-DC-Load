@@ -71,6 +71,9 @@ The Dynamic DC Load is a precision electronic load designed for testing power su
 - 🔄 **Recovery Monitoring:** Configurable 1-30 minute recovery timeout
 - ⏱️ **Watchdog Protection:** 60-second communication timeout
 - 🚦 **Status Display:** Battery capacity, voltage, current tracking
+- 🔋 **Multiple Cell Chemistries:** Supports various battery types (Li-ion, NiMH, etc.)
+- ⚡ **Automatic Cut-off:** Automatic cut-off voltage calculation based on cell type
+- 🔢 **Battery Packs:** Multiple cell configuration for battery pack testing
 
 ---
 
@@ -216,11 +219,11 @@ Detailed project documentation on Paul's DIY Electronics Blog:
 The firmware includes a runtime calibration system - no recompilation needed!
 
 ### Enter Calibration Mode
-1. Power off ESP32
+1. Power off the DL and remove the serial cable
 2. Hold encoder button
 3. Power on (keep holding)
 4. Wait for "CALIBRATION MODE" screen
-5. Release button
+5. Release button and add the serial cable
 
 ### Serial Commands (9600 baud)
 ```
@@ -269,7 +272,6 @@ This is a joint project with **Bud Bennett**. Contributions are welcome!
 **Always:**
 - Monitor temperature during operation
 - Use in well-ventilated area
-- Double-check polarity before connecting
 - Have fire extinguisher nearby when testing
 
 ---
