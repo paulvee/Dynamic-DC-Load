@@ -4,6 +4,21 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.1] - 2026-03-16
+
+### Fixed
+- **Fan control in calibration mode** - Fan now properly stops during calibration mode
+  - Moved fan PWM channel setup earlier in boot sequence (before calibration mode check)
+  - Previously `ledcWrite()` had no effect because channel wasn't configured yet
+  - Fan now reliably stops when entering calibration mode for quiet operation
+
+### Changed
+- **Version numbering** - Switched to numeric patch versions only (no more letter suffixes)
+  - Modified `increment_version.py` to increment patch number (X.Y.Z → X.Y.Z+1)
+  - Cleaner version scheme aligned with semantic versioning standards
+
+---
+
 ## [7.1.0] - 2026-03-16
 
 ### Added

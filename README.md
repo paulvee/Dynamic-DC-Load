@@ -228,7 +228,11 @@ This firmware works with a **Python desktop application** for battery testing:
 
 ## Version History
 
-### v7.1.0 (March 2026) - Current
+### v7.1.1 (March 2026) - Current
+- 🔧 **Fixed**: Fan control in calibration mode - fan now properly stops during calibration
+- 📝 **Changed**: Version numbering to numeric patch versions only (no more letter suffixes)
+
+### v7.1.0 (March 2026)
 - 🚀 **Major Feature**: Runtime calibration system without recompilation
 - 🎛️ **Added**: Boot-time calibration mode (hold encoder button during power-on)
 - 💾 **Storage**: ESP32 Preferences (NVS) for persistent calibration across firmware updates

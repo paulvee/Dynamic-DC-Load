@@ -172,6 +172,12 @@ void setup() {
         Serial.println("WARNING: Calibration system initialization failed");
     }
 
+    // Setup fan controller EARLY (before calibration mode check)
+    // This allows us to control the fan during calibration mode
+    ledcSetup(FAN_PWM_CHANNEL, FAN_PWM_FREQ, FAN_PWM_RESOLUTION);
+    ledcAttachPin(FAN_PWM, FAN_PWM_CHANNEL);
+    ledcWrite(FAN_PWM_CHANNEL, 0);  // Turn off initially
+
     // Initialize OLED display
     Serial.println("Starting TFT");
     tft.begin();
@@ -376,10 +382,7 @@ void setup() {
     pinMode(ENC_B, INPUT_PULLUP);
     // Note: ISR attachment is in process_encoder task for correct core affinity
 
-    // Setup fan controller
-    ledcSetup(FAN_PWM_CHANNEL, FAN_PWM_FREQ, FAN_PWM_RESOLUTION);
-    ledcAttachPin(FAN_PWM, FAN_PWM_CHANNEL);
-    ledcWrite(FAN_PWM_CHANNEL, 0);  // Turn off initially
+    // Setup fan tacho interrupt (PWM setup already done early in setup)
     attachInterrupt(digitalPinToInterrupt(FAN_TACHO), TachCounter_ISR, RISING);
     Serial.println("Fan setup done");
 
