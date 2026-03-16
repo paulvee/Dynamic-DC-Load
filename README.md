@@ -1,6 +1,6 @@
 # Dynamic DC Load Firmware
 
-**Version:** 7.0.4l  
+**Version:** 7.1.0  
 **Platform:** ESP32 DevKit1 + PlatformIO  
 **Author:** Paul Versteeg
 
@@ -228,7 +228,19 @@ This firmware works with a **Python desktop application** for battery testing:
 
 ## Version History
 
-### v7.0.4l (March 2026) - Current
+### v7.1.0 (March 2026) - Current
+- 🚀 **Major Feature**: Runtime calibration system without recompilation
+- 🎛️ **Added**: Boot-time calibration mode (hold encoder button during power-on)
+- 💾 **Storage**: ESP32 Preferences (NVS) for persistent calibration across firmware updates
+- 🖥️ **Interface**: Serial command interface with 8 commands (CAL SHOW, CV, DUTV, DUTC, SHUNT, SAVE, RESET, EXIT)
+- ⌨️ **Input**: Case-insensitive commands with backspace and Ctrl-C support
+- 🔄 **Exit Options**: Button click (continue boot) or CAL EXIT command (requires power cycle)
+- 🌀 **Fan Control**: Automatically stopped during calibration mode
+- 📦 **Binary Distribution**: Users can calibrate without development tools
+- 📝 **Documentation**: Added CALIBRATION_GUIDE.md and data/README.md
+- 🔧 **Calibration Parameters**: dutVcalib, DUTCurrent, shuntVcalib, cvCalFactor
+
+### v7.0.4l (March 2026)
 - ✨ **Added**: CV mode soft-start to eliminate up to 4A startup current surge
 - 🔧 **Improved**: Simplified DAC settling approach (max DAC → delay → NFETs on → delay → target DAC)
 - 📊 **Calibrated**: CV mode trigger point accuracy to ±0.04V across voltage range
