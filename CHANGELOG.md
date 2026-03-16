@@ -4,6 +4,55 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.0] - 2026-03-16
+
+### Added
+- **Runtime Calibration System** - Major feature enabling calibration without recompilation
+  - Boot-time calibration mode: Hold encoder button during power-on to enter
+  - Serial command interface with 8 commands (CAL SHOW, CAL CV, CAL DUTV, CAL DUTC, CAL SHUNT, CAL SAVE, CAL RESET, CAL EXIT)
+  - ESP32 Preferences (NVS) storage for persistent calibration across firmware updates
+  - Case-insensitive command parsing with backspace and Ctrl-C support
+  - Four calibration parameters: dutVcalib, DUTCurrent, shuntVcalib, cvCalFactor
+  - Two-stage display: Simple welcome screen → Full command menu after first input
+  - Button click exit: Quick cancel and continue boot (no power cycle needed)
+  - CAL EXIT command: Formal completion requiring power cycle
+
+### Changed
+- **Calibration constants architecture**
+  - Moved from hardcoded `const double` in Config.h to runtime `double` variables
+  - Defined `#define DEFAULT_*` values in Config.h as fallback defaults
+  - Calibration values loaded at boot from Preferences, using defaults if not found
+  - CalibrationManager class handles all load/save/reset operations
+
+### Technical Details
+- **Storage**: ESP32 NVS partition in "dl_cal" namespace
+- **Persistence**: Survives firmware updates, OTA updates, and reflashing
+- **Precision**: Double precision floating point (15+ significant digits)
+- **Boot sequence**: Check button → Show splash → Enter cal mode if button held
+- **Fan control**: Automatically stopped during calibration mode
+- **Button timing**: Must hold through entire boot sequence (start when screen blanks)
+- **Baud rate**: 9600 baud for serial communication
+
+### User Experience
+- Binary distribution friendly: No PlatformIO needed for calibration
+- Serial terminal only (PuTTY, Arduino IDE Serial Monitor, etc.)
+- Calibration persists across firmware updates
+- Quick cancel via button click or formal exit via CAL EXIT command
+
+### Files Added
+- `include/CalibrationManager.h` - Calibration manager class definition
+- `src/CalibrationManager.cpp` - Preferences-based calibration implementation (~180 lines)
+- `data/DL_Cal_Values.ini` - Reference file (documentation only, not used by firmware)
+- `data/README.md` - Calibration system user guide
+- `CALIBRATION_GUIDE.md` - Complete calibration procedures and examples
+
+### Files Modified
+- `include/Config.h` - Version 7.1.0, DEFAULT_* calibration defines, updated comments
+- `include/DynamicLoad.h` - Added extern declarations for runtime calibration variables
+- `src/main.cpp` - Added calibration mode boot sequence, display, and command loop (~150 lines)
+
+---
+
 ## [7.0.4l] - 2026-03-15
 
 ### Added

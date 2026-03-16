@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.0.4m";
+const String FW_VERSION = "7.1.0";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -102,17 +102,15 @@ const String FW_VERSION = "7.0.4m";
 
 //=============================================================================
 // CALIBRATION CONSTANTS
+// NOTE: These are now loaded from ESP32 Preferences (NVS) at boot
+// Default values used if no saved calibration exists in NVS
 //=============================================================================
 
-// Voltage calibration
-const double dutVcalib = 1.0;  // Optional DUT voltage calibration factor
-
-// Current calibration
-const double DUTCurrent = 400.00;   // DAC-ADC calibration point (mV)
-const double shuntVcalib = 2.5000;  // Current display calibration factor
-
-// CV mode calibration
-const double cvCalFactor = 1.0606;  // Paul's CV trigger point voltage calibration factor
+// Default calibration values (used if no saved calibration found)
+#define DEFAULT_DUT_V_CALIB 1.0       // Optional DUT voltage calibration factor
+#define DEFAULT_DUT_CURRENT 400.00    // DAC-ADC calibration point (mV)
+#define DEFAULT_SHUNT_V_CALIB 2.5000  // Current display calibration factor
+#define DEFAULT_CV_CAL_FACTOR 1.0     // CV trigger point voltage calibration factor
 
 //=============================================================================
 // DAC LIMIT CONSTANTS

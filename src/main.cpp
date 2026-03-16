@@ -17,6 +17,7 @@
 #include <esp_task_wdt.h>
 
 #include "BatteryMode.h"
+#include "CalibrationManager.h"
 #include "Config.h"
 #include "DynamicLoad.h"
 #include "FanController.h"
@@ -104,6 +105,12 @@ const double voltage_ref = 4.096;
 const double dc_cal_factor = 24.15;
 double currOffset = 0.0;
 
+// Runtime calibration values (loaded from DL_Cal_Values.ini at boot)
+double dutVcalib = DEFAULT_DUT_V_CALIB;
+double DUTCurrent = DEFAULT_DUT_CURRENT;
+double shuntVcalib = DEFAULT_SHUNT_V_CALIB;
+double cvCalFactor = DEFAULT_CV_CAL_FACTOR;
+
 // Battery mode variables
 bool battSetup = false;
 bool end_of_test = false;
@@ -160,11 +167,170 @@ void setup() {
     Serial.print("\\n\\r\\n\\rDynamic DC Load - Version ");
     Serial.println(FW_VERSION);
 
+    // Initialize calibration manager and load values from Preferences
+    if (!CalibrationManager::begin()) {
+        Serial.println("WARNING: Calibration system initialization failed");
+    }
+
     // Initialize OLED display
     Serial.println("Starting TFT");
     tft.begin();
     tft.setRotation(0);
-    oled_prep();   // Splash screen
+
+    // Check if button is held during boot for calibration mode (check EARLY)
+    pinMode(ENC_BUT, INPUT_PULLUP);
+    delay(100);                                            // Delay for button state to settle
+    bool calibrationMode = (digitalRead(ENC_BUT) == LOW);  // Read before splash screen
+
+    // Show splash screen (but we already know if cal mode is needed)
+    oled_prep();
+
+    if (calibrationMode) {  // Button was pressed during boot
+
+        // Turn off the fan during calibration mode
+        ledcWrite(FAN_PWM_CHANNEL, 0);
+        Serial.println("- Fan stopped for calibration mode");
+
+        // Display initial calibration mode screen (simple)
+        tft.fillScreen(BLACK);
+        tft.setFont();  // Use default small font
+        tft.setTextColor(YELLOW);
+        tft.setCursor(10, 20);
+        tft.print("CALIBRATION");
+        tft.setCursor(10, 30);
+        tft.print("MODE");
+        tft.setTextColor(WHITE);
+        tft.setCursor(10, 50);
+        tft.print("Connect serial");
+        tft.setCursor(10, 65);
+        tft.print("Type CAL on");
+        tft.setCursor(10, 75);
+        tft.print("serial monitor");
+        tft.setTextColor(GREEN);
+        tft.setCursor(10, 90);
+        tft.print("or click to");
+        tft.setCursor(10, 100);
+        tft.print("cancel");
+
+        CalibrationManager::printCalibration();
+        Serial.println("\nEnter calibration commands:");
+        Serial.println("Type 'CAL SHOW' for help\n");
+
+        // Wait for button release
+        while (digitalRead(ENC_BUT) == LOW) {
+            delay(10);
+        }
+
+        // Calibration command loop
+        String inputBuffer = "";
+        bool showedMenu = false;
+        bool exitViaCommand = false;  // Track if exited via CAL EXIT vs button
+        while (true) {
+            if (Serial.available()) {
+                char c = Serial.read();
+                if (c == '\n' || c == '\r') {
+                    if (inputBuffer.length() > 0) {
+                        // Show command menu after first input
+                        if (!showedMenu) {
+                            tft.fillScreen(BLACK);
+                            tft.setFont();
+                            tft.setTextColor(YELLOW);
+                            tft.setCursor(5, 5);
+                            tft.print("CAL Commands:");
+                            tft.setTextColor(CYAN);
+                            tft.setCursor(5, 20);
+                            tft.print("CAL SHOW");
+                            tft.setCursor(5, 30);
+                            tft.print("CAL CV 1.0606");
+                            tft.setCursor(5, 40);
+                            tft.print("CAL DUTV 1.0");
+                            tft.setCursor(5, 50);
+                            tft.print("CAL DUTC 400.0");
+                            tft.setCursor(5, 60);
+                            tft.print("CAL SHUNT 2.5");
+                            tft.setCursor(5, 70);
+                            tft.print("CAL SAVE");
+                            tft.setCursor(5, 80);
+                            tft.print("CAL RESET");
+                            tft.setCursor(5, 90);
+                            tft.print("CAL EXIT");
+                            tft.setTextColor(GREEN);
+                            tft.setCursor(5, 105);
+                            tft.print("Active - enter");
+                            tft.setCursor(5, 115);
+                            tft.print("commands via serial");
+                            showedMenu = true;
+                        }
+
+                        if (CalibrationManager::processCommand(inputBuffer)) {
+                            // Check for exit command
+                            String cmd = inputBuffer;
+                            cmd.trim();
+                            cmd.toUpperCase();
+                            if (cmd == "CAL EXIT") {
+                                exitViaCommand = true;
+                                break;  // Exit calibration mode
+                            }
+                        }
+                        inputBuffer = "";
+                        Serial.print("\n> ");
+                    }
+                } else if (c == 8 || c == 127) {  // Backspace or Delete
+                    if (inputBuffer.length() > 0) {
+                        inputBuffer.remove(inputBuffer.length() - 1);
+                        Serial.print("\b \b");  // Backspace, space, backspace to erase character
+                    }
+                } else if (c == 3) {  // Ctrl-C
+                    if (inputBuffer.length() > 0) {
+                        Serial.println("\n^C (cancelled)");
+                        inputBuffer = "";
+                        Serial.print("> ");
+                    }
+                } else if (c >= 32 && c <= 126) {  // Printable characters
+                    inputBuffer += c;
+                    Serial.print(c);  // Echo
+                }
+            }
+
+            // Check for button press to cancel calibration mode
+            if (digitalRead(ENC_BUT) == LOW) {
+                delay(50);  // Debounce
+                if (digitalRead(ENC_BUT) == LOW) {
+                    Serial.println("\n\nCalibration cancelled - continuing normal boot");
+                    exitViaCommand = false;
+                    break;  // Exit calibration mode and continue boot
+                }
+            }
+
+            delay(10);
+        }
+
+        // Only show exit screen and halt if exited via CAL EXIT command
+        if (exitViaCommand) {
+            Serial.println("\nCalibration mode exited. Power cycle to restart.");
+            tft.fillScreen(BLACK);
+            tft.setFont();  // Use default small font
+            tft.setTextColor(GREEN);
+            tft.setCursor(20, 50);
+            tft.print("Calibration");
+            tft.setCursor(20, 60);
+            tft.print("Complete!");
+            tft.setTextColor(WHITE);
+            tft.setCursor(10, 80);
+            tft.print("Power cycle to");
+            tft.setCursor(10, 90);
+            tft.print("restart Dynamic");
+            tft.setCursor(10, 100);
+            tft.print("Load");
+
+            // Infinite loop - user must power cycle
+            while (true) {
+                delay(1000);
+            }
+        }
+        // If exited via button, just continue with normal boot
+    }
+
     setup_oled();  // Setup for measurements
 
     // Setup GPIO pins
