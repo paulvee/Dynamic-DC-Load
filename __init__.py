@@ -1,7 +1,7 @@
 """
-Battery Tester Application - Python Port
+"""Battery Tester Application
 
-A modern Python/PyQt6 port of the Delphi Battery Tester application.
+A Python/PyQt6 application for battery discharge testing and analysis.
 """
 
 __version__ = "2.0.0-alpha"

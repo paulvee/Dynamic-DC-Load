@@ -1,7 +1,7 @@
 """
 Main Window for Battery Tester Application
 
-PyQt6-based GUI matching the original Delphi application layout.
+PyQt6-based GUI for controlling and monitoring battery discharge tests.
 """
 
 from PyQt6.QtWidgets import (
@@ -411,33 +411,20 @@ class MainWindow(QMainWindow):
         # Add spacing after user input fields
         layout.setRowMinimumHeight(3, 60)
 
-        # Cutoff voltage (V) — combo for list mode, spinbox for free-entry mode
+        # Cutoff voltage (V) — single editable field with recommended default
         label = QLabel("Cutoff Voltage (V):")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(label, 4, 0)
-
-        self.voltage_input_stack = QStackedWidget()
-
-        self.voltage_combo = QComboBox()
-        self.populate_voltage_combo()
-        self.voltage_combo.setItemDelegate(CompactDelegate(self.voltage_combo))
-        self.voltage_combo.setToolTip("Minimum discharge voltage (cell count × per-cell cutoff for battery type)")
-        self.voltage_combo.currentIndexChanged.connect(self.on_voltage_combo_changed)
-        self.voltage_input_stack.addWidget(self.voltage_combo)   # index 0
 
         self.voltage_spinbox = QDoubleSpinBox()
         self.voltage_spinbox.setRange(0.0, 200.0)
         self.voltage_spinbox.setDecimals(2)
         self.voltage_spinbox.setSingleStep(0.1)
-        self.voltage_spinbox.setValue(4.20)
-        self.voltage_spinbox.setToolTip("Minimum discharge voltage (custom value)")
+        self.voltage_spinbox.setValue(3.00)
+        self.voltage_spinbox.setToolTip("Minimum discharge voltage (auto-filled with recommended value, can be edited)")
         self.voltage_spinbox.valueChanged.connect(self.update_effective_cutoff_display)
-        self.voltage_input_stack.addWidget(self.voltage_spinbox)  # index 1
-
-        # Constrain stack to single-line height
-        self.voltage_input_stack.setFixedHeight(self.voltage_combo.sizeHint().height())
-
-        layout.addWidget(self.voltage_input_stack, 4, 1)
+        self.voltage_spinbox.valueChanged.connect(self.on_cutoff_voltage_changed)
+        layout.addWidget(self.voltage_spinbox, 4, 1)
 
         # Effective cutoff (shown only in cell-count mode)
         self.effective_cutoff_label = QLabel("Effective cutoff:")
@@ -474,7 +461,7 @@ class MainWindow(QMainWindow):
         self.battery_weight_input.setToolTip(
             "Battery weight in grams.\n"
             "Included when saving/printing chart images.\n"
-            "Not shown when set to 0."
+            "Not shown when set to 0"
         )
         self.battery_weight_input.valueChanged.connect(self.on_battery_weight_changed)
         self.update_battery_weight_style()  # Set initial style
@@ -596,28 +583,10 @@ class MainWindow(QMainWindow):
         # Add spacing after verbose logging checkbox
         layout.setRowMinimumHeight(2, 50)
 
-        # AUTO_BT command checkbox (requires firmware v7.0+)
-        label = QLabel("Enable AUTO_BT Command (FW v7.0+):")
-        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 3, 0)
-        self.auto_bt_checkbox = QCheckBox()
-        self.auto_bt_checkbox.setChecked(self.config.get_auto_bt_enabled())
-        self.auto_bt_checkbox.setToolTip(
-            "Enable AUTO_BT command for automatic mode switching (requires firmware v7.0+).\n"
-            "When checked: PC automatically switches DL to Battery Test mode.\n"
-            "When unchecked: You must manually switch DL to BT mode before starting test.\n"
-            "Leave UNCHECKED for old firmware (v6.x and earlier) to avoid parameter corruption."
-        )
-        self.auto_bt_checkbox.stateChanged.connect(self.on_auto_bt_changed)
-        layout.addWidget(self.auto_bt_checkbox, 3, 1)
-
-        # Add spacing after AUTO_BT checkbox
-        layout.setRowMinimumHeight(3, 50)
-
         # Chart title
         label = QLabel("Chart Title:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 4, 0)
+        layout.addWidget(label, 3, 0)
         from PyQt6.QtWidgets import QLineEdit
         self.chart_title_input = QLineEdit()
         self.chart_title_input.setPlaceholderText("Enter a title for saved/printed charts (optional)")
@@ -625,28 +594,28 @@ class MainWindow(QMainWindow):
             "Optional title added to saved/printed chart images."
         )
         self.chart_title_input.textChanged.connect(self.on_chart_title_changed)
-        layout.addWidget(self.chart_title_input, 4, 1)
+        layout.addWidget(self.chart_title_input, 3, 1)
 
         # Add spacing after chart title
-        layout.setRowMinimumHeight(4, 50)
+        layout.setRowMinimumHeight(3, 50)
 
         # Dark chart background checkbox
         label = QLabel("Dark Chart Background:")
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(label, 5, 0)
+        layout.addWidget(label, 4, 0)
         self.dark_chart_checkbox = QCheckBox()
         self.dark_chart_checkbox.setChecked(self.config.get_dark_chart())
         self.dark_chart_checkbox.setToolTip(
             "Use a dark background for the discharge chart."
         )
         self.dark_chart_checkbox.stateChanged.connect(self.on_dark_chart_changed)
-        layout.addWidget(self.dark_chart_checkbox, 5, 1)
+        layout.addWidget(self.dark_chart_checkbox, 4, 1)
 
         # Add spacing after dark chart checkbox
-        layout.setRowMinimumHeight(5, 50)
+        layout.setRowMinimumHeight(4, 50)
 
         # Push all rows to the top — absorbs any extra vertical space
-        layout.setRowStretch(6, 1)
+        layout.setRowStretch(5, 1)
 
         group.setLayout(layout)
         return group
@@ -737,7 +706,14 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(False)
         layout.addWidget(self.start_btn)
 
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setToolTip("Stop discharge and monitor voltage recovery (no confirmation needed)")
+        self.stop_btn.clicked.connect(self.on_stop_clicked)
+        self.stop_btn.setEnabled(False)
+        layout.addWidget(self.stop_btn)
+
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setToolTip("Cancel test immediately (requires confirmation)")
         self.cancel_btn.clicked.connect(self.cancel_test)
         self.cancel_btn.setEnabled(False)
         layout.addWidget(self.cancel_btn)
@@ -911,55 +887,7 @@ class MainWindow(QMainWindow):
             if removed:
                 self.statusBar().showMessage(f"Port disconnected: {', '.join(removed)}", 3000)
     
-    def populate_voltage_combo(self, per_cell: bool = False):
-        """Populate voltage cutoff combo box.
-
-        When per_cell is True, shows per-cell cutoff voltages based on battery chemistry.
-        When False, shows simplified list of common voltages with custom option.
-        """
-        self.voltage_combo.clear()
-        if per_cell:
-            # Per-cell voltage ranges based on battery chemistry
-            battery_type = self.battery_type_combo.currentText()
-            
-            if battery_type.startswith("LiFePO4"):
-                # LiFePO4: 3.0 V down to 2.0 V in 0.1 V steps
-                voltages = [round(3.0 - i * 0.1, 1) for i in range(11)]
-                default_index = 5  # 2.5V per cell
-            elif battery_type.startswith("LiPo") or battery_type.startswith("LiHV"):
-                # LiPo/LiHV: 3.5 V down to 2.5 V in 0.1 V steps
-                voltages = [round(3.5 - i * 0.1, 1) for i in range(11)]
-                default_index = 5  # 3.0V per cell
-            elif battery_type.startswith("NiMH") or battery_type.startswith("NiCd"):
-                # NiMH/NiCd: 1.2 V down to 0.7 V in 0.05 V steps
-                voltages = [round(1.2 - i * 0.05, 2) for i in range(11)]
-                default_index = 6  # 0.90V per cell
-            elif battery_type.startswith("Alkaline"):
-                # Alkaline: 1.5 V down to 0.7 V in 0.1 V steps
-                voltages = [round(1.5 - i * 0.1, 2) for i in range(9)]
-                default_index = 7  # 0.80V per cell
-            else:
-                # Generic: 3.5 V down to 0.5 V in 0.5 V steps
-                voltages = [round(3.5 - i * 0.5, 2) for i in range(7)]
-                default_index = 1  # 3.0V per cell
-            
-            for v in voltages:
-                self.voltage_combo.addItem(f"{v:.2f}")
-            self.voltage_combo.setCurrentIndex(default_index)
-        else:
-            # Simplified list of common cutoff voltages
-            voltages = [
-                ("7.00", "7.00 V (E-Block NiMH)"),
-                ("3.00", "3.00 V (Li-Ion/LiPo)"),
-                ("0.90", "0.90 V (NiMH/NiCd)"),
-                ("0.80", "0.80 V (Alkaline)"),
-                ("0.00", "0.00 V (No cutoff)"),
-                ("custom", "Custom voltage...")
-            ]
-            for value, label in voltages:
-                self.voltage_combo.addItem(label, value)
-            # Default to 3.00 V
-            self.voltage_combo.setCurrentIndex(1)
+    # Removed populate_voltage_combo - now using direct spinbox input
     
     def load_settings(self):
         """Load saved settings"""
@@ -968,7 +896,6 @@ class MainWindow(QMainWindow):
         params = self.config.get_test_parameters()
         self.current_spin.setValue(params.current_ma)
         self.capacity_spin.setValue(params.capacity_mah)
-        self.config.set_cutoff_voltage(params.cutoff_voltage)
         
         # Load battery type and cell count FIRST (before voltage)
         battery_type_index = self.config.get_battery_type()
@@ -979,14 +906,11 @@ class MainWindow(QMainWindow):
         if 0 <= cell_count_index < self.cell_count_combo.count():
             self.cell_count_combo.setCurrentIndex(cell_count_index)
         
-        # Update voltage combo options based on battery type/cell count
+        # Update voltage and cell count settings
         self.on_cell_count_changed(auto_set_voltage=False)
         
         # Now load the saved cutoff voltage
-        for i in range(self.voltage_combo.count()):
-            if abs(float(self.voltage_combo.itemText(i)) - params.cutoff_voltage) < 0.01:
-                self.voltage_combo.setCurrentIndex(i)
-                break
+        self.voltage_spinbox.setValue(params.cutoff_voltage)
         
         # Load battery weight and chart title
         self.battery_weight_input.setValue(params.battery_weight)
@@ -1041,6 +965,7 @@ class MainWindow(QMainWindow):
         self.connect_btn.setEnabled(is_connected and not is_running or has_valid_port and not is_connected)
         self.refresh_btn.setEnabled(not is_connected)  # Disable refresh when connected
         self.start_btn.setEnabled(is_connected and not is_running)
+        self.stop_btn.setEnabled(is_running)
         self.cancel_btn.setEnabled(is_running)
         
         # Update LED
@@ -1054,7 +979,7 @@ class MainWindow(QMainWindow):
         
         # Enable/disable parameters during test
         self.current_spin.setEnabled(not is_running)
-        self.voltage_combo.setEnabled(not is_running)
+        self.voltage_spinbox.setEnabled(not is_running)
         self.voltage_spinbox.setEnabled(not is_running)
         self.max_voltage_spinbox.setEnabled(not is_running)
         self.cell_count_combo.setEnabled(not is_running)
@@ -1118,19 +1043,18 @@ class MainWindow(QMainWindow):
         # Validate against voltage-based hardware limits
         self.update_current_limits()
     
+    def on_cutoff_voltage_changed(self):
+        """Handle cutoff voltage change"""
+        if not self._loading_settings:
+            cutoff_voltage = self.voltage_spinbox.value()
+            self.config.set_cutoff_voltage(cutoff_voltage)
+    
     def on_verbose_logging_changed(self):
         """Handle verbose logging checkbox change"""
         verbose_logging = self.verbose_logging_checkbox.isChecked()
         
         # Save to config
         self.config.set_verbose_logging(verbose_logging)
-    
-    def on_auto_bt_changed(self):
-        """Handle AUTO_BT checkbox change"""
-        auto_bt_enabled = self.auto_bt_checkbox.isChecked()
-        
-        # Save to config
-        self.config.set_auto_bt_enabled(auto_bt_enabled)
     
     def log_serial(self, message: str, is_verbose: bool = False):
         """Log serial communication to Controller Message window
@@ -1321,19 +1245,7 @@ class MainWindow(QMainWindow):
         else:
             self.capacity_spin.setSingleStep(50)
 
-    def on_voltage_combo_changed(self):
-        """Handle voltage combo box change - switch to spinbox for custom entry"""
-        if not self._cell_count_mode_active():
-            # For non-lithium batteries, check if "Custom voltage..." was selected
-            current_data = self.voltage_combo.currentData()
-            if current_data == "custom":
-                # Switch to spinbox for custom entry
-                self.voltage_input_stack.setCurrentIndex(1)
-            else:
-                # Show combo
-                self.voltage_input_stack.setCurrentIndex(0)
-        
-        self.update_effective_cutoff_display()
+    # Removed on_voltage_combo_changed - now using direct spinbox input
     
     def _battery_short_name(self) -> str:
         """Return a short display name for the selected battery type"""
@@ -1365,7 +1277,7 @@ class MainWindow(QMainWindow):
         self.cell_count_label.setVisible(True)
         self.cell_count_combo.setVisible(True)
         
-        # Update voltage combo for the new battery type
+        # Update voltage settings for the new battery type
         self.on_cell_count_changed(auto_set_voltage=False)  # Don't auto-set yet
         
         # Auto-set cutoff voltage to recommended value for this battery type
@@ -1381,15 +1293,12 @@ class MainWindow(QMainWindow):
             self.config.set_battery_type(self.battery_type_combo.currentIndex())
 
     def on_cell_count_changed(self, auto_set_voltage: bool = True):
-        """Switch voltage input between per-cell combo and free-entry spinbox"""
+        """Update cutoff voltage when cell count changes"""
         enter_max_mode = self.cell_count_combo.currentText() == "Enter max voltage"
-        if enter_max_mode:
-            self.voltage_input_stack.setCurrentIndex(1)  # show cutoff spinbox
-        else:
-            self.voltage_input_stack.setCurrentIndex(0)  # show combo
-            self.populate_voltage_combo(per_cell=True)
-            if auto_set_voltage:
-                self.set_cutoff_voltage_to_recommended()
+        
+        # Auto-set voltage to recommended when cell count changes
+        if auto_set_voltage:
+            self.set_cutoff_voltage_to_recommended()
 
         # Show max voltage entry only in "Enter max voltage" mode
         self.max_voltage_label.setVisible(enter_max_mode)
@@ -1409,24 +1318,18 @@ class MainWindow(QMainWindow):
         in_cell_mode = self._cell_count_mode_active()
         self.effective_cutoff_label.setVisible(in_cell_mode)
         self.effective_cutoff_value.setVisible(in_cell_mode)
+        
+        total_voltage = self.voltage_spinbox.value()
+        
         if in_cell_mode:
-            if not self.voltage_combo.currentText():
-                return
-            per_cell = float(self.voltage_combo.currentText())
+            # Show total voltage and per-cell voltage
             cell_count = int(self.cell_count_combo.currentText())
-            total = round(per_cell * cell_count, 2)
-            self.effective_cutoff_value.setText(f"{total:.2f} V  ({per_cell:.2f} V/cell)")
-            self.display_cutoff.setText(f"{total:.2f} ({per_cell:.2f} V/cell)")
-        elif self.cell_count_combo.currentText() == "Enter max voltage":
-            # Free-entry spinbox mode
-            self.display_cutoff.setText(f"{self.voltage_spinbox.value():.2f}")
-        elif self.voltage_combo.currentData() == "custom":
-            # Custom voltage selected
-            self.display_cutoff.setText(f"{self.voltage_spinbox.value():.2f}")
+            per_cell = round(total_voltage / cell_count, 2)
+            self.effective_cutoff_value.setText(f"{total_voltage:.2f} V  ({per_cell:.2f} V/cell)")
+            self.display_cutoff.setText(f"{total_voltage:.2f} ({per_cell:.2f} V/cell)")
         else:
-            # Regular combo selection
-            voltage_value = self.get_effective_cutoff_voltage()
-            self.display_cutoff.setText(f"{voltage_value:.2f}")
+            # Just show total voltage
+            self.display_cutoff.setText(f"{total_voltage:.2f}")
 
     def update_display_parameters(self):
         """Populate the Current Readings panel with current setup values"""
@@ -1537,23 +1440,9 @@ class MainWindow(QMainWindow):
     def get_effective_cutoff_voltage(self) -> float:
         """Return the cutoff voltage to send to the hardware.
 
-        Cell-count mode: per-cell combo value × cell count.
-        Enter max voltage mode: spinbox value used directly.
-        Custom voltage: spinbox value used directly.
+        Always returns the voltage spinbox value directly.
         """
-        if self._cell_count_mode_active():
-            # Per-cell mode: multiply per-cell voltage by cell count
-            per_cell = float(self.voltage_combo.currentText())
-            return round(per_cell * int(self.cell_count_combo.currentText()), 2)
-        if self.cell_count_combo.currentText() == "Enter max voltage":
-            # Free-entry spinbox mode
-            return self.voltage_spinbox.value()
-        # Check if custom voltage is selected
-        if self.voltage_combo.currentData() == "custom":
-            return self.voltage_spinbox.value()
-        # Standard voltage selection from combo data
-        voltage_data = self.voltage_combo.currentData()
-        return float(voltage_data) if voltage_data and voltage_data != "custom" else 0.0
+        return self.voltage_spinbox.value()
 
     def get_battery_max_voltage(self, battery_type: str) -> float:
         """Get maximum voltage for battery type with 10% padding"""
@@ -1591,24 +1480,17 @@ class MainWindow(QMainWindow):
         battery_type = self.battery_type_combo.currentText()
         recommended = self.get_recommended_cutoff_voltage(battery_type)
         
-        # Check if we're in per-cell mode or absolute voltage mode
-        in_cell_mode = self._cell_count_mode_active()
-        
-        if in_cell_mode:
-            # For per-cell mode, set per-cell voltage in combo (text-based)
-            for i in range(self.voltage_combo.count()):
-                voltage_text = self.voltage_combo.itemText(i)
-                if voltage_text and abs(float(voltage_text) - recommended) < 0.01:
-                    self.voltage_combo.setCurrentIndex(i)
-                    break
+        # E-Block is special - the recommended voltage is already the total voltage (7.0V for 9V battery)
+        if battery_type == "E-Block NiMH (9v)":
+            self.voltage_spinbox.setValue(recommended)
+        # For cell-count mode, multiply by cell count to get total voltage
+        elif self._cell_count_mode_active():
+            cell_count = int(self.cell_count_combo.currentText())
+            total_voltage = round(recommended * cell_count, 2)
+            self.voltage_spinbox.setValue(total_voltage)
         else:
-            # For absolute voltage mode, find matching value in data
-            for i in range(self.voltage_combo.count()):
-                voltage_data = self.voltage_combo.itemData(i)
-                if voltage_data and voltage_data != "custom":
-                    if abs(float(voltage_data) - recommended) < 0.01:
-                        self.voltage_combo.setCurrentIndex(i)
-                        break
+            # For Enter max voltage mode, use recommended directly
+            self.voltage_spinbox.setValue(recommended)
     
     def start_test(self):
         """Start battery discharge test"""
@@ -1695,7 +1577,8 @@ class MainWindow(QMainWindow):
         self.display_battery_type.setText(self.battery_type_combo.currentText())
         self.display_current.setText(f"{params.current_ma}")
         if self._cell_count_mode_active():
-            per_cell = float(self.voltage_combo.currentText())
+            cell_count = int(self.cell_count_combo.currentText())
+            per_cell = round(params.cutoff_voltage / cell_count, 2)
             self.display_cutoff.setText(f"{params.cutoff_voltage:.2f} ({per_cell:.2f} V/cell)")
         else:
             self.display_cutoff.setText(f"{params.cutoff_voltage:.2f}")
@@ -1722,15 +1605,16 @@ class MainWindow(QMainWindow):
         self.sync_axis_ticks()
         
         # Send parameters to controller
+        # Calculate maximum discharge time (capacity / current * 60 minutes + safety margin)
         max_time = params.calculate_max_time_minutes()
+        
         success = self.protocol.send_test_parameters(
             current_ma=params.current_ma,
             cutoff_voltage=params.cutoff_voltage,
             time_limit_minutes=max_time,
             sample_interval_sec=params.sample_interval_sec,
-            beep_enabled=params.beep_enabled,
             recovery_time_minutes=params.recovery_time_minutes,
-            auto_bt_enabled=self.config.get_auto_bt_enabled()
+            auto_bt_enabled=True  # Always use AUTO_BT with firmware v7.0+
         )
         
         if not success:
@@ -1740,7 +1624,7 @@ class MainWindow(QMainWindow):
         
         # Log sent parameters for verification
         if hasattr(self, 'message_text'):
-            self._append_message(f"Sent parameters: Current={params.current_ma}mA, Cutoff={params.cutoff_voltage}V, Time={max_time}min")
+            self._append_message(f"Sent parameters: Current={params.current_ma}mA, Cutoff={params.cutoff_voltage}V, TimeLimit={max_time}min")
         
         # Start serial worker thread
         self.test_data.state = TestState.RUNNING
@@ -1759,6 +1643,15 @@ class MainWindow(QMainWindow):
         
         self.status_label1.setText(f"Start Time: {datetime.now().strftime('%a %d %b %Y %H:%M')}")
         self.update_ui_state()
+    
+    def on_stop_clicked(self):
+        """Handle Stop button click - gracefully stop discharge and enter recovery mode"""
+        if self.protocol:
+            self.protocol.stop_test()
+            # Don't call stop_test() - let the firmware send recovery message
+            # which will be handled by on_message_received()
+            if hasattr(self, 'message_text'):
+                self._append_message("Stopping discharge - entering recovery mode...")
     
     def cancel_test(self):
         """Cancel current test"""
@@ -1792,7 +1685,7 @@ class MainWindow(QMainWindow):
                 x_max = times[-1] / 60.0
             else:
                 x_max = times[-1]
-            self.chart_widget.setXRange(0, x_max, padding=0.02)
+            self.chart_widget.setXRange(0, x_max, padding=0)
 
         # Beep to alert user of test completion (if enabled)
         if self.test_data.parameters.beep_enabled:
@@ -1804,11 +1697,11 @@ class MainWindow(QMainWindow):
     
     def on_data_received(self, reading: TestReading):
         """Handle received data from controller"""
-        # Debug: Log received data
-        if hasattr(self, 'message_text'):
-            self._append_message(
-                f"RX: Time={reading.elapsed_time} V={reading.voltage:.3f}V I={reading.current_ma:.1f}mA Cap={reading.capacity_mah:.2f}mAh"
-            )
+        # Log received data (only in verbose mode)
+        self.log_serial(
+            f"RX: Time={reading.elapsed_time} V={reading.voltage:.3f}V I={reading.current_ma:.1f}mA Cap={reading.capacity_mah:.2f}mAh",
+            is_verbose=True
+        )
         
         # Add to test data
         self.test_data.add_point(
@@ -1846,22 +1739,8 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'message_text'):
                 self._append_message(f"RECOVERY: Load removed, monitoring voltage recovery for {self.test_data.parameters.recovery_time_minutes} minutes")
             
-            # Add vertical marker at recovery start
-            times, _ = self.test_data.get_voltage_series()
-            if times:
-                # Determine if we're in minutes or seconds mode
-                marker_pos = times[-1] / 60.0 if times[-1] > 300 else times[-1]
-                
-                # Create recovery marker line (orange/yellow color, dashed)
-                self.recovery_marker = pg.InfiniteLine(
-                    pos=marker_pos,
-                    angle=90,
-                    pen=pg.mkPen(color='y', width=2, style=Qt.PenStyle.DashLine),
-                    movable=False,
-                    label='Recovery Start',
-                    labelOpts={'position': 0.95, 'color': (255, 165, 0)}
-                )
-                self.chart_widget.addItem(self.recovery_marker)
+            # Recovery marker will be added in the chart update section below
+            # where we know the correct time scaling (seconds vs minutes)
         
         # Check for recovery timeout (transition to COMPLETED)
         if self.test_data.state == TestState.RECOVERY:
@@ -1888,12 +1767,46 @@ class MainWindow(QMainWindow):
         if self.autorange_voltage_checkbox.isChecked() and voltages:
             v_min, v_max = min(voltages), max(voltages)
             span = v_max - v_min if v_max != v_min else 1.0
+            
+            # Enforce minimum span to prevent over-zooming on stable voltages
+            min_span = 0.5  # Minimum 0.5V range to avoid excessive zoom
+            if span < min_span:
+                # Center the current range and expand to minimum span
+                center = (v_min + v_max) / 2.0
+                v_min = center - min_span / 2.0
+                v_max = center + min_span / 2.0
+                span = min_span
+            
             margin = span * (0.10 / 0.80)  # 80% of window = data span → 10% margins each side
+            y_min = v_min - margin
+            y_max = v_max + margin
+            
+            # Round to nice intervals so gridlines align with top/bottom edges
+            # Use intervals based on the total range: 0.1V, 0.2V, 0.5V, 1.0V, etc.
+            total_range = y_max - y_min
+            if total_range <= 1.0:
+                interval = 0.1
+            elif total_range <= 2.0:
+                interval = 0.2
+            elif total_range <= 5.0:
+                interval = 0.5
+            elif total_range <= 10.0:
+                interval = 1.0
+            elif total_range <= 20.0:
+                interval = 2.0
+            else:
+                interval = 5.0
+            
+            # Round min down and max up to nearest interval
+            import math
+            y_min_rounded = math.floor(y_min / interval) * interval
+            y_max_rounded = math.ceil(y_max / interval) * interval
+            
             # Clear custom ticks so pyqtgraph auto-generates labels for the narrowed range.
             # Without this, full-scale custom ticks from sync_axis_ticks() fall outside the
             # auto-range window and appear as missing labels.
             self.chart_widget.getAxis('left').setTicks(None)
-            self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
+            self.chart_widget.setYRange(y_min_rounded, y_max_rounded, padding=0)
         
         # Switch X-axis to minutes after 300 seconds
         if times:
@@ -1916,7 +1829,23 @@ class MainWindow(QMainWindow):
             self.voltage_curve.setData(plot_times, voltages)
             if self.graph_current_checkbox.isChecked():
                 self.current_curve.setData(plot_times, currents)
-            self.chart_widget.setXRange(0, x_max, padding=0.02)
+            self.chart_widget.setXRange(0, x_max, padding=0)
+            
+            # Add recovery marker if recovery just started (marker doesn't exist yet but state is RECOVERY)
+            if self.test_data.state == TestState.RECOVERY and self.recovery_marker is None:
+                # Use the recovery start time to position the marker correctly
+                marker_pos = self.recovery_start_elapsed / 60.0 if times[-1] > 300 else self.recovery_start_elapsed
+                
+                # Create recovery marker line (orange/yellow color, dashed)
+                self.recovery_marker = pg.InfiniteLine(
+                    pos=marker_pos,
+                    angle=90,
+                    pen=pg.mkPen(color='y', width=2, style=Qt.PenStyle.DashLine),
+                    movable=False,
+                    label='Recovery Start',
+                    labelOpts={'position': 0.95, 'color': (255, 165, 0)}
+                )
+                self.chart_widget.addItem(self.recovery_marker)
     
     def on_message_received(self, message: str):
         """Handle status message from controller"""
@@ -1928,7 +1857,7 @@ class MainWindow(QMainWindow):
 
         # Check for test completion
         # Note: "Cutoff" does NOT stop the test - recovery monitoring continues
-        if any(keyword in message for keyword in ['Finished', 'Exceeded', 'Error', 'Cancelled']):
+        if any(keyword in message for keyword in ['Finished', 'Completed', 'Exceeded', 'Error', 'Cancelled']):
             self.stop_test(message)
     
     def on_error_occurred(self, error: str):
@@ -1977,7 +1906,7 @@ class MainWindow(QMainWindow):
             )
             return
         
-        # Check minimum data points (like Delphi version requires 6 points)
+        # Check minimum data points (need at least 6 for meaningful data)
         if len(self.test_data.data_points) < 6:
             QMessageBox.warning(
                 self,

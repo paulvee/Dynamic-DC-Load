@@ -2,11 +2,12 @@
 Configuration Management for Battery Tester
 
 Handles saving and loading application settings to/from config.ini file.
-Compatible with Delphi version's INI format.
+
 """
 
 import configparser
 import os
+import sys
 from typing import Optional
 from core.models import TestParameters
 
@@ -14,14 +15,32 @@ from core.models import TestParameters
 class ConfigManager:
     """
     Manages application configuration persistence.
+    Saves settings to config.ini in the same directory as the executable/script.
+    Provides methods to get/set individual settings and load/save test parameters.
+    Also includes logic to validate window geometry and ensure it's visible on screen.
     
-    Maintains compatibility with original Delphi app's BatteryTester.ini format.
+
     """
     
     SECTION = 'BattTest'
     
-    def __init__(self, config_path: str = 'config.ini'):
-        self.config_path = config_path
+    def __init__(self, config_path: Optional[str] = None):
+        # Determine the directory where the executable/script is located
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable (PyInstaller)
+            app_dir = os.path.dirname(sys.executable)
+        else:
+            # Running as script
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+            # Go up one level from utils/ to the main app directory
+            app_dir = os.path.dirname(app_dir)
+        
+        # Use provided path or default to config.ini in app directory
+        if config_path is None:
+            self.config_path = os.path.join(app_dir, 'config.ini')
+        else:
+            self.config_path = config_path
+        
         self.config = configparser.ConfigParser()
         self.load()
     
@@ -46,7 +65,7 @@ class ConfigManager:
     def create_defaults(self):
         """Create default configuration"""
         self.config[self.SECTION] = {
-            'Cutoff': '5',                    # Cutoff voltage index (matches Delphi combo box)
+            'CutoffVoltage': '3.0',           # Cutoff voltage in volts (direct value)
             'TimeLimit': '180',               # Capacity in mAh (not time!)
             'SampleTime': '10',               # Sample interval in seconds
             'LoopDelay': '0',                 # Loop delay (not used)
@@ -103,6 +122,7 @@ class ConfigManager:
     def save_test_parameters(self, params: TestParameters):
         """Save test parameters to config"""
         self.set_value('LastCurrent', params.current_ma)
+        self.set_cutoff_voltage(params.cutoff_voltage)
         self.set_value('TimeLimit', params.capacity_mah)
         self.set_value('SampleTime', params.sample_interval_sec)
         self.set_value('LoopDelay', params.loop_delay_ms)
@@ -115,11 +135,18 @@ class ConfigManager:
     
     def get_cutoff_voltage(self) -> float:
         """
-        Get cutoff voltage from index.
+        Get cutoff voltage directly as float value.
         
-        Maps Delphi's combo box index to voltage value.
+        For backward compatibility, converts old 'Cutoff' index to voltage if needed.
         """
-        voltage_map = {
+        # Try new direct voltage storage first
+        voltage = self.get_float('CutoffVoltage', -1.0)
+        
+        if voltage >= 0.0:
+            return voltage
+        
+        # Legacy compatibility: convert old index-based 'Cutoff' to voltage
+        legacy_voltage_map = {
             0: 4.20, 1: 4.15, 2: 4.10, 3: 4.05, 4: 4.00,
             5: 3.95, 6: 3.90, 7: 3.85, 8: 3.80, 9: 3.75,
             10: 3.70, 11: 3.65, 12: 3.60, 13: 3.55, 14: 3.50,
@@ -129,25 +156,17 @@ class ConfigManager:
             30: 2.70, 31: 2.65, 32: 2.60, 33: 2.55, 34: 2.50,
             35: 0.00
         }
-        index = self.get_int('Cutoff', 5)
-        return voltage_map.get(index, 3.0)
+        old_index = self.get_int('Cutoff', 5)
+        converted_voltage = legacy_voltage_map.get(old_index, 3.0)
+        
+        # Migrate to new format
+        self.set_cutoff_voltage(converted_voltage)
+        
+        return converted_voltage
     
     def set_cutoff_voltage(self, voltage: float):
-        """Set cutoff voltage by finding closest match"""
-        voltage_map = {
-            0: 4.20, 1: 4.15, 2: 4.10, 3: 4.05, 4: 4.00,
-            5: 3.95, 6: 3.90, 7: 3.85, 8: 3.80, 9: 3.75,
-            10: 3.70, 11: 3.65, 12: 3.60, 13: 3.55, 14: 3.50,
-            15: 3.45, 16: 3.40, 17: 3.35, 18: 3.30, 19: 3.25,
-            20: 3.20, 21: 3.15, 22: 3.10, 23: 3.05, 24: 3.00,
-            25: 2.95, 26: 2.90, 27: 2.85, 28: 2.80, 29: 2.75,
-            30: 2.70, 31: 2.65, 32: 2.60, 33: 2.55, 34: 2.50,
-            35: 0.00
-        }
-        # Find closest match
-        closest_index = min(voltage_map.keys(), 
-                          key=lambda k: abs(voltage_map[k] - voltage))
-        self.set_value('Cutoff', closest_index)
+        """Set cutoff voltage directly as float value"""
+        self.set_value('CutoffVoltage', voltage)
         self.save()
     
     def get_int(self, key: str, default: int = 0) -> int:

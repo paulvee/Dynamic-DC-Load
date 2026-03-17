@@ -154,8 +154,10 @@ class TestData:
         if not self.data_points:
             return [], []
         
-        times = [p.elapsed_seconds for p in self.data_points]
-        voltages = [p.voltage for p in self.data_points]
+        # Sort by elapsed time to handle out-of-order data points
+        sorted_points = sorted(self.data_points, key=lambda p: p.elapsed_seconds)
+        times = [p.elapsed_seconds for p in sorted_points]
+        voltages = [p.voltage for p in sorted_points]
         return times, voltages
     
     def get_current_series(self) -> tuple[List[float], List[float]]:
@@ -168,8 +170,10 @@ class TestData:
         if not self.data_points:
             return [], []
         
-        times = [p.elapsed_seconds for p in self.data_points]
-        currents = [p.current_ma for p in self.data_points]
+        # Sort by elapsed time to handle out-of-order data points
+        sorted_points = sorted(self.data_points, key=lambda p: p.elapsed_seconds)
+        times = [p.elapsed_seconds for p in sorted_points]
+        currents = [p.current_ma for p in sorted_points]
         return times, currents
     
     def clear(self):

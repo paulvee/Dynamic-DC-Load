@@ -252,25 +252,19 @@ class ArduinoProtocol:
         cutoff_voltage: float,
         time_limit_minutes: int,
         sample_interval_sec: int,
-        loop_delay: int = 0,
-        tolerance: int = 1,
-        beep_enabled: bool = False,
         recovery_time_minutes: int = 5,
         auto_bt_enabled: bool = False
     ) -> bool:
         """
-        Send test parameters to ESP32.
+        Send test parameters to ESP32 firmware v7.x.
         
         Parameters are sent as newline-terminated values in sequence:
-        1. current_ma
-        2. cutoff_voltage  
+        1. current_ma (mA)
+        2. cutoff_voltage (V)
         3. time_limit (minutes)
         4. sample_interval (seconds)
-        5. loop_delay (offset - not used in v3.04)
-        6. tolerance (not used in v3.04)
-        7. beep (not used in v3.04)
-        8. recovery_time (accepted by DL but not used - app handles timeout)
-        9. cancel flag (0 = start test)
+        5. recovery_time (minutes)
+        6. cancel flag (0 = start test)
         
         Note: Recovery monitoring is app-side only. When recovery timeout expires,
         the app sends cancel command (999) to terminate the DL.
@@ -342,22 +336,6 @@ class ArduinoProtocol:
             time.sleep(0.15)
             
             if self.log_callback:
-                self.log_callback(f"TX:\t\tLoopDelay={loop_delay}", is_verbose=True)
-            self.serial.write(f"{loop_delay}\n".encode())
-            time.sleep(0.15)
-            
-            if self.log_callback:
-                self.log_callback(f"TX:\t\tTolerance={tolerance}", is_verbose=True)
-            self.serial.write(f"{tolerance}\n".encode())
-            time.sleep(0.15)
-            
-            beep_flag = '1' if beep_enabled else '0'
-            if self.log_callback:
-                self.log_callback(f"TX:\t\tBeep={beep_flag}", is_verbose=True)
-            self.serial.write(f"{beep_flag}\n".encode())
-            time.sleep(0.15)
-            
-            if self.log_callback:
                 self.log_callback(f"TX:\t\tRecoveryTime={recovery_time_minutes}min", is_verbose=True)
             self.serial.write(f"{recovery_time_minutes}\n".encode())
             time.sleep(0.15)
@@ -387,6 +365,24 @@ class ArduinoProtocol:
             return True
         except serial.SerialException as e:
             print(f"Error sending cancel: {e}")
+            return False
+    
+    def stop_test(self) -> bool:
+        """
+        Send stop command to DL (STOP).
+        
+        Gracefully stops the discharge and enters recovery mode.
+        This keeps the test monitoring active to collect recovery data.
+        
+        Returns True if successful, False otherwise.
+        """
+        try:
+            if self.log_callback:
+                self.log_callback("TX:\t\tSTOP", is_verbose=False)  # Always log stop command
+            self.serial.write("STOP\n".encode())
+            return True
+        except serial.SerialException as e:
+            print(f"Error sending stop: {e}")
             return False
     
     def reset_controller(self) -> bool:

@@ -86,8 +86,7 @@ def test_connection():
         current_ma=current_ma,
         cutoff_voltage=cutoff_v,
         time_limit_minutes=max_time,
-        sample_interval_sec=sample_sec,
-        beep_enabled=False
+        sample_interval_sec=sample_sec
     )
     
     if not success:

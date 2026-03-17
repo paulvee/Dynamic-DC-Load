@@ -104,7 +104,7 @@ class ExportManager:
     def export_chart_image(chart_widget, test_data: TestData, 
                           test_params: TestParameters, parent=None) -> Tuple[bool, Optional[str]]:
         """
-        Export chart as image with metadata overlay (matches Delphi version)
+        Export chart as image with metadata overlay
         
         Args:
             chart_widget: The pyqtgraph PlotWidget to export
@@ -172,13 +172,13 @@ class ExportManager:
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             
-            # Calculate position for text overlay (centered-right area like Delphi)
+            # Calculate position for text overlay (centered-right area)
             chart_width = pixmap.width()
             chart_height = pixmap.height()
             text_x = int(chart_width * 0.45)  # Start at 45% width
             text_y = int(chart_height * 0.35)  # Start at 35% height
             
-            # Draw metadata text with Courier New font like Delphi
+            # Draw metadata text with Courier New font
             painter.setPen(QColor(0, 0, 0))
             
             # Title - Bold and underlined
@@ -207,7 +207,7 @@ class ExportManager:
             seconds = duration_seconds % 60
             duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             
-            # Build metadata lines (matching Delphi format exactly)
+            # Build metadata lines
             line_height = 15
             y_offset = text_y + 15
             
@@ -308,13 +308,13 @@ class ExportManager:
             # Add metadata overlay (matching export_chart_image format)
             metadata_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             
-            # Calculate position for text overlay (centered-right area like Delphi)
+            # Calculate position for text overlay (centered-right area)
             chart_width = pixmap_with_metadata.width()
             chart_height = pixmap_with_metadata.height()
             text_x = int(chart_width * 0.45)  # Start at 45% width
             text_y = int(chart_height * 0.35)  # Start at 35% height
             
-            # Draw metadata text with Courier New font like Delphi
+            # Draw metadata text with Courier New font
             metadata_painter.setPen(QColor(0, 0, 0))
             
             # Title - Bold and underlined
@@ -343,7 +343,7 @@ class ExportManager:
             seconds = duration_seconds % 60
             duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             
-            # Build metadata lines (matching Delphi and export format)
+            # Build metadata lines
             line_height = 15
             y_offset = text_y + 15
             

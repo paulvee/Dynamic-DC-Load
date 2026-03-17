@@ -2,8 +2,7 @@
 """
 Battery Tester Application - Main Entry Point
 
-Python port of the Delphi Battery Tester application.
-For testing lithium batteries using Arduino/ESP32 Dynamic Load controller.
+For testing batteries using Arduino/ESP32 Dynamic Load controller.
 """
 
 import sys
