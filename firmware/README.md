@@ -38,18 +38,16 @@ If you want to modify or build the firmware yourself:
 
 ---
 
-## 📋 What's New in v7.1.1
+## 📋 What's New in v7.1.2
 
-### Bug Fixes
-- ✅ **Fan control in calibration mode** - Fan now properly stops during calibration
-  - Fixed PWM channel initialization order in boot sequence
-  - Fan reliably stops for quiet operation during calibration
+### Changes
+- ✅ **Battery Tester Protocol** - Optimized serial communication for Battery Tester v2.1.0+
+  - Streamlined data reporting for improved performance
+  - Enhanced compatibility with new Battery Tester features
+  - Watchdog reset improvements
+  - 5-second baseline monitoring
 
-### Version Numbering
-- ✅ **Switched to numeric patch versions** (X.Y.Z format)
-  - No more letter suffixes for cleaner semantic versioning
-
-### v7.1.1 Features (Included)
+### Previous Features (v7.1.1 and v7.1.0 Included)
 - 🎛️ **Runtime calibration system** - Calibrate without recompilation
 - 💾 **ESP32 Preferences (NVS)** - Persistent storage across firmware updates
 - 🖥️ **Serial command interface** - 8 calibration commands via terminal
@@ -84,11 +82,10 @@ firmware/
 │   └── DL_Cal_Values.ini     # Calibration template (reference)
 │
 ├── releases/                 # Pre-compiled binaries
-│   └── v7.1.1/               # Latest release
+│   └── v7.1.2/               # Latest release
 │       ├── firmware.bin      # Main firmware
 │       ├── bootloader.bin    # ESP32 bootloader
 │       ├── partitions.bin    # Partition table
-│       ├── boot_app0.bin     # Boot selector
 │       ├── flash_firmware.bat# Flash script (Windows)
 │       ├── README.md         # Flash instructions
 │       ├── QUICK_START.txt   # Calibration quick ref
@@ -127,7 +124,7 @@ The firmware includes a comprehensive runtime calibration system that doesn't re
 - `CAL EXIT` - Exit (power cycle required)
 
 ### Documentation
-- **Quick Reference:** [releases/v7.1.1/QUICK_START.txt](releases/v7.1.1/QUICK_START.txt)
+- **Quick Reference:** [releases/v7.1.2/QUICK_START.txt](releases/v7.1.2/QUICK_START.txt)
 - **Complete Guide:** [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md)
 - **User Guide:** [data/README.md](data/README.md)
 
@@ -199,8 +196,8 @@ This firmware works with:
 - [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) - Detailed calibration procedures
 - [TEST_PLAN.md](TEST_PLAN.md) - Testing and validation
 - [data/README.md](data/README.md) - User calibration guide
-- [releases/v7.1.1/README.md](releases/v7.1.1/README.md) - Flash instructions
-- [releases/v7.1.1/VERSION_INFO.txt](releases/v7.1.1/VERSION_INFO.txt) - Release notes
+- [releases/v7.1.2/README.md](releases/v7.1.2/README.md) - Flash instructions
+- [releases/v7.1.2/VERSION_INFO.txt](releases/v7.1.2/VERSION_INFO.txt) - Release notes
 
 ---
 

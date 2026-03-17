@@ -1,5 +1,5 @@
 ╔════════════════════════════════════════════════════════════════╗
-║     Dynamic DC Load v7.1.1 - Calibration Quick Start          ║
+║     Dynamic DC Load v7.1.2 - Calibration Quick Start          ║
 ╚════════════════════════════════════════════════════════════════╝
 
 ENTERING CALIBRATION MODE
@@ -145,8 +145,8 @@ Can't enter calibration mode:
   → Button must be pressed BEFORE splash screen appears
 
 Fan still running:
-  → Fixed in v7.1.1! Fan should stop immediately
-  → If not, verify you're running v7.1.1 firmware
+  → Fixed in firmware! Fan should stop immediately
+  → If not, try power cycling or reflashing firmware
 
 Commands not recognized:
   → Check baud rate is 9600

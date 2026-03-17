@@ -4,7 +4,7 @@ This folder contains a reference `.ini` file showing the calibration parameter f
 
 ## Calibration System Overview
 
-The Dynamic Load firmware (v7.1.1+) uses **ESP32 Preferences (NVS storage)** for calibration values. This means:
+The Dynamic Load firmware (v7.1.2+) uses **ESP32 Preferences (NVS storage)** for calibration values. This means:
 - ✅ No filesystem uploads needed
 - ✅ Values persist across firmware updates
 - ✅ Calibrate via serial commands only

@@ -1,11 +1,11 @@
-# Test Plan - Dynamic DC Load Firmware v7.1.1
+# Test Plan - Dynamic DC Load Firmware v7.1.2
 
-Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
+Comprehensive testing plan for Dynamic DC Load firmware v7.1.2
 
 **Test Date:** _______________  
 **Tester:** _______________  
-**Firmware Version:** 7.1.1  
-**Batt Test app Version:** _______________
+**Firmware Version:** 7.1.2  
+**Batt Test app Version:** 2.1.0
 
 ---
 
@@ -19,8 +19,8 @@ Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
 - [ ] All safety connections verified
 
 ### Software Requirements
-- [ ] Firmware v7.1.1 uploaded to ESP32
-- [ ] Batt Test app v2.0.h or later installed
+- [ ] Firmware v7.1.2 uploaded to ESP32
+- [ ] Batt Test app v2.1.0 or later installed
 - [ ] Serial port identified (e.g., COM3)
 - [ ] Serial monitor available (PuTTY, Arduino IDE, PlatformIO, or Batt Test app)
 
@@ -659,7 +659,7 @@ ________________________________________________________________
 
 ---
 
-*Test Plan Version: 1.1*  
+*Test Plan Version: 1.2*  
 *Created: March 11, 2026*  
-*Updated: March 16, 2026*  
-*For Firmware: v7.1.1*
+*Updated: March 17, 2026*  
+*For Firmware: v7.1.2*

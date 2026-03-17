@@ -132,7 +132,7 @@ sudo esptool.py ...
 2. **Verify firmware version**:
    - Open serial monitor at 9600 baud
    - Power on ESP32
-   - Should see: "Dynamic DC Load - Version 7.1.1"
+   - Should see: "Dynamic DC Load - Version 7.1.2"
 
 3. **Calibration** (if needed):
    - See QUICK_START.txt for calibration mode instructions
@@ -154,8 +154,8 @@ sudo esptool.py ...
 
 ## Technical Details
 
-- **Firmware Version**: 7.1.1
-- **Build Date**: March 16, 2026
+- **Firmware Version**: 7.1.2
+- **Build Date**: March 17, 2026
 - **Platform**: ESP32 DevKit1 (ESP32-D0WD-V3)
 - **Flash Size**: 4MB
 - **Partition Scheme**: Default (OTA updates supported)

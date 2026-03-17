@@ -109,7 +109,7 @@ Dynamic-DC-Load/
 │   ├── src/                   # Source files
 │   ├── include/               # Header files
 │   ├── releases/              # Pre-compiled binaries
-│   │   └── v7.1.0/           # Latest release
+│   │   └── v7.1.2/           # Latest release
 │   ├── CALIBRATION_GUIDE.md   # Detailed calibration procedures
 │   ├── CHANGELOG.md           # Version history
 │   └── README.md             # Firmware documentation
@@ -196,8 +196,8 @@ Dynamic-DC-Load/
 - **[Firmware README](firmware/README.md)** - Build and flash instructions
 - **[Calibration Guide](firmware/CALIBRATION_GUIDE.md)** - Complete calibration procedures
 - **[Changelog](firmware/CHANGELOG.md)** - Version history and updates
-- **[Quick Start](firmware/releases/v7.1.0/QUICK_START.txt)** - Calibration quick reference
-- **[Release Notes](firmware/releases/v7.1.0/VERSION_INFO.txt)** - Detailed release information
+- **[Quick Start](firmware/releases/v7.1.2/QUICK_START.txt)** - Calibration quick reference
+- **[Release Notes](firmware/releases/v7.1.2/VERSION_INFO.txt)** - Detailed release information
 
 ### Hardware
 - **[Hardware README](hardware/README.md)** - Assembly and specifications
@@ -330,9 +330,9 @@ See [`docs/images/`](docs/images/) for build photos and test results.
 
 | Component | Status | Version |
 |-----------|--------|---------|
-| **Firmware** | ✅ Stable | v7.1.1 |
+| **Firmware** | ✅ Stable | v7.1.2 |
 | **Hardware** | ✅ Stable | v5.1a |
-| **Battery Tester App** | 🚧 Coming Soon | TBD |
+| **Battery Tester App** | ✅ Stable | v2.1.0 |
 | **Documentation** | ✅ Complete | Current |
 
 ---
