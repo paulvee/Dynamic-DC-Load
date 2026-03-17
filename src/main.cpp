@@ -496,9 +496,9 @@ void mainLoop(void* pvParameters) {
         // Auto-switch to Battery Test mode on serial command
         // Python app sends "AUTO_BT\n" to trigger automatic mode switch or reset state
         // This doesn't interfere with firmware upload (esptool doesn't send this string)
-        // Only check for AUTO_BT when not in battery mode to avoid consuming test data
-        // If already in Battery mode (even in setup), let BatteryMode.cpp handle everything
-        if (Serial.available() && !batteryModeActive) {
+        // Process AUTO_BT even when in battery mode (to allow test restart)
+        // but only check at beginning of serial data (peek for 'A')
+        if (Serial.available() && Serial.peek() == 'A' && !battSetup) {
             String cmd = Serial.readStringUntil('\n');
             cmd.trim();
             if (cmd == "AUTO_BT") {
@@ -554,8 +554,12 @@ void mainLoop(void* pvParameters) {
                 Serial.println("ACK_BT");
 
                 // Delay after mode switch to allow "Waiting for parameters" message to be visible
+                // Use vTaskDelay with watchdog reset instead of blocking delay()
                 if (justSwitchedMode) {
-                    delay(1000);
+                    for (int i = 0; i < 10; i++) {
+                        esp_task_wdt_reset();
+                        vTaskDelay(100 / portTICK_PERIOD_MS);
+                    }
                 }
             }
         }

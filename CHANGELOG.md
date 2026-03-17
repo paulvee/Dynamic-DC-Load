@@ -4,6 +4,18 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.2] - 2026-03-17
+
+### Changed
+- **Battery Tester Protocol** - Optimized serial communication for Battery Tester v2.1.0+
+  - Streamlined data reporting for improved performance
+  - Enhanced compatibility with new Battery Tester features (Stop button, auto-ranging)
+
+### Notes
+- This version is recommended for Battery Tester v2.1.0 and later
+
+---
+
 ## [7.1.1] - 2026-03-16
 
 ### Fixed

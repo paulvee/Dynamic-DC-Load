@@ -122,6 +122,7 @@ void batteryMode(void* pvParameters) {
                         cmd.trim();
                         if (cmd == "AUTO_BT") {
                             Serial.println("ACK_BT");
+                            Serial.flush();  // Ensure ACK_BT is transmitted immediately
                             lastSerialActivity = millis();
 
                             // Wait for actual parameters
@@ -140,16 +141,20 @@ void batteryMode(void* pvParameters) {
                         // This shouldn't happen in normal operation
                     }
 
+                    // Read parameters with periodic watchdog resets
+                    // (each parseInt/parseFloat can block up to 1 second)
                     target_mA = Serial.parseInt();
+                    esp_task_wdt_reset();
                     cutoff_voltage = Serial.parseFloat();
+                    esp_task_wdt_reset();
                     time_limit = Serial.parseInt();
+                    esp_task_wdt_reset();
                     sampleTime = Serial.parseInt() * 1000;
-                    Serial.parseInt();                          // Unused (was kP)
-                    Serial.parseFloat();                        // Unused (was offset)
-                    Serial.parseInt();                          // Unused (was tolerance)
-                    Serial.parseInt();                          // Unused (was beep)
+                    esp_task_wdt_reset();
                     recovery_time_minutes = Serial.parseInt();  // Recovery monitoring time
-                    cancel = Serial.parseInt();                 // 0 at start, 999 to abort
+                    esp_task_wdt_reset();
+                    cancel = Serial.parseInt();  // 0 at start, 999 to abort
+                    esp_task_wdt_reset();
 
                     // Validate parameters
                     if (target_mA <= 0 || target_mA > 10000) target_mA = 100;                                // Default 100mA
@@ -177,6 +182,8 @@ void batteryMode(void* pvParameters) {
                 tft.print("RecTime: ");
                 tft.print(recovery_time_minutes);
                 tft.print("m");
+
+                esp_task_wdt_reset();  // Reset before 2s delay
                 vTaskDelay(2000 / portTICK_PERIOD_MS);
 
                 // Apply parameters with mutex protection
@@ -208,6 +215,77 @@ void batteryMode(void* pvParameters) {
         digitalWrite(NFET_OFF, LOW);  // Turn on NFETs
         nfetState = !digitalRead(NFET_OFF);
 
+        Serial.println("DEBUG: Starting baseline monitoring");
+
+        // Initialize timing counter for entire test (baseline + ramp-up + measurement)
+        startMillisec = millis();
+        mAh_soFar = 0.0;
+        last_hours = 0;
+        stop_oled_vars = false;
+        in_recovery_mode = false;
+        recovery_start_millis = 0;
+        millisCalc_mAh = millis();  // Initialize mAh calculation timer
+
+        // ===== 5-SECOND BASELINE MONITORING (NO LOAD) =====
+        // Monitor cell voltage for 5 seconds before applying load
+        // Provides baseline voltage reading and allows battery to stabilize
+        Serial.print("MSGSTBaseline monitoring (5s)...MSGEND");
+        unsigned long baseline_start = millis();
+        unsigned long last_baseline_send = millis();
+
+        while ((millis() - baseline_start) < 5000) {
+            // Read voltage without load
+            double local_dutV;
+            portENTER_CRITICAL(&mutex);
+            local_dutV = dutV;  // Unfiltered voltage for baseline
+            portEXIT_CRITICAL(&mutex);
+
+            // Send baseline data to PC every 500ms with proper timestamps
+            if (millis() - last_baseline_send >= 500) {
+                getTime();
+                String message = "GRAPHVS";
+                message += days;
+                message += ":";
+                if (hours < 10) message += "0";
+                message += hours;
+                message += ":";
+                if (mins < 10) message += "0";
+                message += mins;
+                message += ":";
+                if (secs < 10) message += "0";
+                message += secs;
+                message += "!0!0!";
+                message += local_dutV;
+                message += "GRAPHVEND";
+                Serial.print(message);
+                last_baseline_send = millis();
+            }
+
+            // Reset watchdog to prevent timeout during baseline monitoring
+            esp_task_wdt_reset();
+
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+
+            // Check for test cancellation during baseline
+            if (!batteryModeActive || !appPresence) {
+                Serial.print("MSGSTBaseline monitoring cancelled.MSGEND");
+                end_of_test = true;
+                break;
+            }
+        }
+
+        Serial.println("DEBUG: Baseline complete");
+        Serial.print("DEBUG: end_of_test = ");
+        Serial.println(end_of_test);
+
+        // Only proceed to ramp-up if test not cancelled
+        if (!end_of_test) {
+            Serial.print("MSGSTStarting current ramp-up...MSGEND");
+            Serial.println("DEBUG: Entering ramp-up");
+        } else {
+            Serial.println("DEBUG: Skipping ramp-up, end_of_test = true");
+        }
+
         // Calculate approximate target DAC for smooth discharge current ramp-up
         // Prevents current spike by ramping: 25% -> 50% -> 75% -> 100%
         // maxCurrent_10A (64000) corresponds to 10.2A (10200mA)
@@ -218,39 +296,106 @@ void batteryMode(void* pvParameters) {
         long target_DAC = (long)((target_mA * 64000.0) / 10200.0);
         if (target_DAC > 64000) target_DAC = 64000;
 
-        // 4-step ramp-up to avoid current spike (total ~200ms)
-        portENTER_CRITICAL(&mutex);
-        DAC = target_DAC / 4;  // 25%
-        portEXIT_CRITICAL(&mutex);
-        dac.write(DAC);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        // 4-step ramp-up to avoid current spike (500ms per step = 2 seconds total)
+        // Send data packet after each step so ramp is visible in graph
+        // Check cutoff voltage during ramp-up to prevent damage to weak batteries
+        // Only execute if test not cancelled during baseline
+        if (!end_of_test) {
+            // Step 1: 25%
+            portENTER_CRITICAL(&mutex);
+            DAC = target_DAC / 4;
+            portEXIT_CRITICAL(&mutex);
+            dac.write(DAC);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            getTime();
+            write_to_pc();
+            esp_task_wdt_reset();
 
-        portENTER_CRITICAL(&mutex);
-        DAC = target_DAC / 2;  // 50%
-        portEXIT_CRITICAL(&mutex);
-        dac.write(DAC);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+            // Check cutoff voltage after step 1
+            double local_dutV_step1;
+            portENTER_CRITICAL(&mutex);
+            local_dutV_step1 = dispVoltage;
+            portEXIT_CRITICAL(&mutex);
+            if (local_dutV_step1 < cutoff_voltage) {
+                Serial.print("MSGSTCutoff during ramp-up (step 1) - Aborting testMSGEND");
+                end_of_test = true;
+            }
+        }
 
-        portENTER_CRITICAL(&mutex);
-        DAC = (target_DAC * 3) / 4;  // 75%
-        portEXIT_CRITICAL(&mutex);
-        dac.write(DAC);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        if (!end_of_test) {
+            // Step 2: 50%
+            portENTER_CRITICAL(&mutex);
+            DAC = target_DAC / 2;
+            portEXIT_CRITICAL(&mutex);
+            dac.write(DAC);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            getTime();
+            write_to_pc();
+            esp_task_wdt_reset();
 
-        portENTER_CRITICAL(&mutex);
-        DAC = target_DAC;  // 100%
-        portEXIT_CRITICAL(&mutex);
-        dac.write(DAC);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+            // Check cutoff voltage after step 2
+            double local_dutV_step2;
+            portENTER_CRITICAL(&mutex);
+            local_dutV_step2 = dispVoltage;
+            portEXIT_CRITICAL(&mutex);
+            if (local_dutV_step2 < cutoff_voltage) {
+                Serial.print("MSGSTCutoff during ramp-up (step 2) - Aborting testMSGEND");
+                end_of_test = true;
+            }
+        }
 
-        mAh_soFar = 0.0;
-        startMillisec = millis();
-        last_hours = 0;
-        stop_oled_vars = false;
-        in_recovery_mode = false;
-        recovery_start_millis = 0;
-        millis_PC_wait = millis();  // Initialize - delay first data packet by full sample interval
-        millisCalc_mAh = millis();  // Initialize mAh calculation timer
+        if (!end_of_test) {
+            // Step 3: 75%
+            portENTER_CRITICAL(&mutex);
+            DAC = (target_DAC * 3) / 4;
+            portEXIT_CRITICAL(&mutex);
+            dac.write(DAC);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            getTime();
+            write_to_pc();
+            esp_task_wdt_reset();
+
+            // Check cutoff voltage after step 3
+            double local_dutV_step3;
+            portENTER_CRITICAL(&mutex);
+            local_dutV_step3 = dispVoltage;
+            portEXIT_CRITICAL(&mutex);
+            if (local_dutV_step3 < cutoff_voltage) {
+                Serial.print("MSGSTCutoff during ramp-up (step 3) - Aborting testMSGEND");
+                end_of_test = true;
+            }
+        }
+
+        if (!end_of_test) {
+            // Step 4: 100%
+            portENTER_CRITICAL(&mutex);
+            DAC = target_DAC;
+            portEXIT_CRITICAL(&mutex);
+            dac.write(DAC);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            getTime();
+            write_to_pc();
+            esp_task_wdt_reset();
+
+            // Check cutoff voltage after step 4
+            double local_dutV_step4;
+            portENTER_CRITICAL(&mutex);
+            local_dutV_step4 = dispVoltage;
+            portEXIT_CRITICAL(&mutex);
+            if (local_dutV_step4 < cutoff_voltage) {
+                Serial.print("MSGSTCutoff during ramp-up (step 4) - Aborting testMSGEND");
+                end_of_test = true;
+            } else {
+                Serial.print("DEBUG: Ramp-up complete, DAC = ");
+                Serial.println(DAC);
+            }
+        }
+
+        millis_PC_wait = millis();  // Initialize for regular measurement loop
+
+        // Initialize hardware regulation state for new test
+        bool power_limit_active = false;
+        long last_effective_target_mA = -1;  // Force DAC update on first iteration
 
         // Main measurement loop
         while (!end_of_test && batteryModeActive && appPresence) {
@@ -266,54 +411,37 @@ void batteryMode(void* pvParameters) {
             // Enforce current limit based on voltage to prevent exceeding 150W
             // Below 40V: allow up to 8A (8000mA)
             // Above 40V: limit to 4A (4000mA) to stay under 160W
+            // Hardware feedback loop regulates current - we only set DAC when power limit changes
+
             long effective_target_mA = target_mA;
             if (local_dutV >= 40.0 && target_mA > 4000) {
                 effective_target_mA = 4000;
-                // Note: Don't spam serial - only log if actually limiting
-                static bool power_limit_warned = false;
-                if (!power_limit_warned) {
+                if (!power_limit_active) {
                     Serial.println("Power limit: Current reduced to 4A (voltage >= 40V)");
-                    power_limit_warned = true;
+                    power_limit_active = true;
+                }
+            } else {
+                if (power_limit_active && local_dutV < 39.0) {
+                    // Hysteresis: restore full current when voltage drops below 39V
+                    Serial.println("Power limit: Current restored");
+                    power_limit_active = false;
                 }
             }
 
-            // ===== CURRENT REGULATION (Multi-stage fixed-step control) =====
-            // Calculate current error in mA (target vs actual)
-            long actual_mA = (long)(local_dispCurrent * 1000);
-            long current_error_mA = effective_target_mA - actual_mA;  // Positive = need more current
-            long current_error_abs = abs(current_error_mA);
+            // ===== HARDWARE CURRENT REGULATION =====
+            // Update DAC only when power limit changes (like CC mode with rotary encoder)
+            // Hardware feedback loop maintains the current automatically
+            if (effective_target_mA != last_effective_target_mA) {
+                long target_DAC = (long)((effective_target_mA * 64000.0) / 10200.0);
+                if (target_DAC > 64000) target_DAC = 64000;
 
-            // Multi-stage step sizes based on error magnitude
-            int step = 0;
-            if (current_error_abs > 200) {
-                step = 100;  // Large error: aggressive correction
-            } else if (current_error_abs > 50) {
-                step = 50;  // Medium error: moderate correction
-            } else if (current_error_abs > 10) {
-                step = 20;  // Small error: gentle correction
-            } else if (current_error_abs > 2) {
-                step = 5;  // Very small error: fine correction
+                portENTER_CRITICAL(&mutex);
+                DAC = target_DAC;
+                portEXIT_CRITICAL(&mutex);
+                dac.write(DAC);
+
+                last_effective_target_mA = effective_target_mA;
             }
-            // else: within 2mA deadband, no adjustment needed
-
-            // Apply correction
-            portENTER_CRITICAL(&mutex);
-            if (current_error_mA > 0 && step > 0) {
-                // Need more current - increase DAC
-                DAC = DAC + step;
-            } else if (current_error_mA < 0 && step > 0) {
-                // Too much current - decrease DAC
-                if (DAC > step) {
-                    DAC = DAC - step;
-                } else {
-                    DAC = 0;
-                }
-            }
-
-            // Clamp DAC to valid range (0 to 64000 for 10A max)
-            if (DAC > 64000) DAC = 64000;
-            portEXIT_CRITICAL(&mutex);
-            dac.write(DAC);
 
             // Check cutoff voltage - enter recovery mode
             if ((!end_of_test) && (!in_recovery_mode) && (local_dutV < cutoff_voltage)) {
@@ -346,8 +474,8 @@ void batteryMode(void* pvParameters) {
                 end_of_test = true;
             }
 
-            // Check time limit
-            if ((!end_of_test) && (tMins > time_limit)) {
+            // Check time limit (only during discharge, not during recovery)
+            if ((!end_of_test) && (!in_recovery_mode) && (tMins > time_limit)) {
                 Serial.print("MSGSTTime ExceededMSGEND");
                 termination_message_sent = true;
                 timed_out = true;
@@ -375,17 +503,30 @@ void batteryMode(void* pvParameters) {
                 end_of_test = true;
             }
 
-            // Check for manual cancellation or heartbeat
+            // Check for manual stop, cancellation, or heartbeat
             if (Serial.available() > 0) {
-                // Update communication watchdog - received data from PC (cancel or heartbeat)
+                // Update communication watchdog - received data from PC
                 lastSerialActivity = millis();
 
-                // Read incoming data - could be cancel (999) or heartbeat ("HB")
+                // Read incoming data - could be "STOP", "999" (cancel), or "HB" (heartbeat)
                 String cmd = Serial.readStringUntil('\n');
                 cmd.trim();
 
-                // Check for cancel command
-                if (cmd == "999" || cmd.toInt() == 999) {
+                // Check for stop command - enter recovery mode gracefully
+                if (cmd == "STOP") {
+                    // Only process if not already in recovery mode
+                    if (!in_recovery_mode) {
+                        digitalWrite(NFET_OFF, HIGH);  // Turn off load
+                        nfetState = !digitalRead(NFET_OFF);
+                        in_recovery_mode = true;
+                        recovery_start_millis = millis();
+                        Serial.print("MSGSTUser stopped - Recovery StartedMSGEND");
+                        // Don't update OLED - CC display shows BT OFF status automatically
+                        // Don't set end_of_test - continue monitoring during recovery
+                    }
+                }
+                // Check for cancel command - immediate termination
+                else if (cmd == "999" || cmd.toInt() == 999) {
                     stop_oled_vars = true;
                     Serial.print("MSGSTUser cancelledMSGEND");
                     termination_message_sent = true;
