@@ -4,8 +4,9 @@
 
 A joint project with Bud Bennett featuring a professional-grade DC Dynamic Load with advanced features including runtime calibration, battery testing automation, and multiple operating modes.
 
-![Version](https://img.shields.io/badge/Firmware-v7.1.1-blue)
+![Version](https://img.shields.io/badge/Firmware-v7.1.2-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-v5.1a-green)
+![Battery Tester](https://img.shields.io/badge/Batt%20Tester-v2.1.0-orange)
 ![License](https://img.shields.io/badge/License-Open%20Source-brightgreen)
 
 ---
@@ -51,7 +52,7 @@ The Dynamic DC Load is a precision electronic load designed for testing power su
 - 🔘 **Control:** Rotary encoder with dual-button functions
 - 📊 **Monitoring:** DSO trigger output (1V = 10A)
 
-### Firmware Features (v7.1.1)
+### Firmware Features (v7.1.2)
 - 🎛️ **Runtime Calibration System:** Adjust calibration without recompiling
 - 💾 **Persistent Storage:** ESP32 NVS storage survives firmware updates
 - 🖥️ **Serial Interface:** 8 calibration commands via any terminal
@@ -64,16 +65,19 @@ The Dynamic DC Load is a precision electronic load designed for testing power su
 - 🌀 **Smart Fan Control:** Temperature-based with calibration mode quiet operation
 - 📦 **Binary Distribution:** Pre-compiled firmware for easy updates
 
-### Software Features (Battery Tester App)
-- 📈 **Real-time Visualization:** Live data graphing with pyqtgraph
+### Software Features (Battery Tester App v2.1.0)
+- 📈 **Real-time Visualization:** Live voltage, current, power, and capacity graphs
+- 🛑 **Graceful Stop:** Stop button for safe test termination with data retention
 - 📊 **Test Automation:** Configurable discharge and recovery cycles
-- 💾 **Data Logging:** Export test results for analysis
-- 🔄 **Recovery Monitoring:** Configurable 1-30 minute recovery timeout
-- ⏱️ **Watchdog Protection:** 60-second communication timeout
-- 🚦 **Status Display:** Battery capacity, voltage, current tracking
+- 🎯 **Smart Defaults:** Auto-calculated cutoff voltages and time estimates
+- 📉 **Auto-ranging:** Automatic Y-axis scaling for optimal visualization
+- 💾 **Data Export:** CSV export with sortable, analyzable test results
+- ⚡ **Streamlined Protocol:** Optimized for firmware v7.1.2+ compatibility
+- 🖥️ **Desktop Application:** Python/PyQt6 GUI for Windows
 - 🔋 **Multiple Cell Chemistries:** Supports various battery types (Li-ion, NiMH, etc.)
-- ⚡ **Automatic Cut-off:** Automatic cut-off voltage calculation based on cell type
 - 🔢 **Battery Packs:** Multiple cell configuration for battery pack testing
+
+**Download:** [Battery Tester v2.1.0 Release](https://github.com/paulvee/Dynamic-DC-Load/releases/tag/batt-tester-v2.1.0)
 
 ---
 
@@ -110,8 +114,12 @@ Dynamic-DC-Load/
 │   ├── CHANGELOG.md           # Version history
 │   └── README.md             # Firmware documentation
 │
-├── Batt-Test-App/            # Python Battery Tester Application
-│   └── [Coming Soon]         # Desktop application for automated testing
+├── Batt-Test-App/            # Python Battery Tester Application v2.1.0
+│   ├── gui/                  # PyQt6 user interface
+│   ├── hardware/             # Serial communication protocol
+│   ├── core/                 # Data models and business logic
+│   ├── utils/                # Configuration and export utilities
+│   └── README.md             # Application documentation
 │
 ├── hardware/                  # Hardware Design Files
 │   ├── schematics/           # Circuit diagrams (PDF, PNG)
@@ -198,7 +206,27 @@ Dynamic-DC-Load/
 - **[BOM](hardware/bom/)** - Component lists
 
 ### Battery Tester App
-- **Coming Soon** - Python application documentation
+Desktop application for automated battery discharge testing and analysis.
+
+**Quick Start:**
+1. Download [BatteryTester.exe](https://github.com/paulvee/Dynamic-DC-Load/releases/tag/batt-tester-v2.1.0) (v2.1.0)
+2. Connect your Dynamic Load via USB
+3. Configure test parameters (cutoff voltage, discharge current)
+4. Monitor real-time graphs and data
+5. Export results to CSV for analysis
+
+**Requirements:**
+- Dynamic Load firmware v7.1.2 or higher
+- Windows 10/11 (executable) or Python 3.9+ (source)
+
+**Documentation:** See [`Batt-Test-App/README.md`](Batt-Test-App/README.md)
+
+**Features:**
+- Automated discharge and recovery testing
+- Real-time graphing (voltage, current, power, capacity)
+- Stop button for graceful test termination
+- Auto-ranging displays and automatic calculations
+- CSV data export with analysis
 
 ---
 
