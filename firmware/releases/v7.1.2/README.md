@@ -1,24 +1,26 @@
-# Dynamic Load Firmware v7.1.1 - Installation Guide
+# Dynamic Load Firmware v7.1.2 - Installation Guide
 
 This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load controller.
 
-## What's New in v7.1.1
-
-### Bug Fixes
-- ✅ **Fan control in calibration mode** - Fan now properly stops during calibration mode
-  - Fixed PWM channel initialization order in boot sequence
-  - Fan reliably stops for quiet operation during calibration
+## What's New in v7.1.2
 
 ### Changes
-- ✅ **Version numbering** - Switched to numeric patch versions (X.Y.Z format)
-  - No more letter suffixes for cleaner semantic versioning
+- ✅ **Battery Tester Protocol** - Optimized serial communication for Battery Tester v2.1.0+
+  - Streamlined data reporting for improved performance
+  - Enhanced compatibility with new Battery Tester features (Stop button, auto-ranging)
+  - Added watchdog resets to prevent timeout during parameter parsing
+  - Added 5-second baseline monitoring before load application
 
-### v7.1.0 Features (included)
+### Compatibility
+- 🔋 This version is recommended for **Battery Tester v2.1.0 and later**
+- 📥 Download Battery Tester: [v2.1.0 Release](https://github.com/paulvee/Dynamic-DC-Load/releases/tag/batt-tester-v2.1.0)
+
+### Previous Features (v7.1.1 and v7.1.0 included)
 - ✅ **Runtime calibration system** - Calibrate without recompilation
 - ✅ **Boot-time calibration mode** - Hold encoder button during power-on
 - ✅ **ESP32 Preferences storage** - Calibration persists across firmware updates
 - ✅ **Serial command interface** - 8 calibration commands via serial terminal
-- ✅ **Binary distribution friendly** - No development tools needed for calibration
+- ✅ **Fan control fix** - Fan properly stops during calibration mode
 
 See QUICK_START.txt for calibration instructions.
 
