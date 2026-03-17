@@ -73,7 +73,7 @@ The Dynamic DC Load is a precision electronic load designed for testing power su
 - 📉 **Auto-ranging:** Automatic Y-axis scaling for optimal visualization
 - 💾 **Data Export:** CSV export with sortable, analyzable test results
 - ⚡ **Streamlined Protocol:** Optimized for firmware v7.1.2+ compatibility
-- 🖥️ **Desktop Application:** Python/PyQt6 GUI for Windows
+- 🖥️ **Desktop Application:** Python/PyQt6 GUI (Windows, macOS, Linux)
 - 🔋 **Multiple Cell Chemistries:** Supports various battery types (Li-ion, NiMH, etc.)
 - 🔢 **Battery Packs:** Multiple cell configuration for battery pack testing
 
@@ -217,7 +217,7 @@ Desktop application for automated battery discharge testing and analysis.
 
 **Requirements:**
 - Dynamic Load firmware v7.1.2 or higher
-- Windows 10/11 (executable) or Python 3.9+ (source)
+- Windows 10/11 (executable) or Python 3.9+ on Windows/macOS/Linux (source)
 
 **Documentation:** See [`Batt-Test-App/README.md`](Batt-Test-App/README.md)
 
