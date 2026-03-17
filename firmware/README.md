@@ -1,7 +1,7 @@
 # Dynamic DC Load - ESP32 Firmware
 
-**Current Version:** 7.1.1  
-**Release Date:** March 16, 2026  
+**Current Version:** 7.1.2  
+**Release Date:** March 17, 2026  
 **Platform:** ESP32 DevKit1  
 
 This directory contains the ESP32 firmware for the Dynamic DC Load controller.
@@ -13,10 +13,10 @@ This directory contains the ESP32 firmware for the Dynamic DC Load controller.
 ### For End Users (Pre-compiled Binaries)
 If you just want to flash the firmware without building from source:
 
-1. Go to [**releases/v7.1.1/**](releases/v7.1.1/)
+1. Go to [**releases/v7.1.2/**](releases/v7.1.2/)
 2. Download all files in that folder
-3. Follow instructions in [releases/v7.1.1/README.md](releases/v7.1.1/README.md)
-4. For calibration, see [releases/v7.1.1/QUICK_START.txt](releases/v7.1.1/QUICK_START.txt)
+3. Follow instructions in [releases/v7.1.2/README.md](releases/v7.1.2/README.md)
+4. For calibration, see [releases/v7.1.2/QUICK_START.txt](releases/v7.1.2/QUICK_START.txt)
 
 ### For Developers (Build from Source)
 If you want to modify or build the firmware yourself:
