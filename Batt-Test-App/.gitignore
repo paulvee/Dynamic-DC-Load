@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Releases (use GitHub Releases instead)
+releases/
+
+# User Configuration - Ignore user-specific settings, track template only
+config.ini
+config.ini.bak
+*.ini.bak
+
+# Application Data
+*.log
+*.db
+*.sqlite
+
+# PDF generation script outputs (keep the converter script, ignore generated PDFs)
+Battery_Tester_README.pdf
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local utility scripts
+sync.bat
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
