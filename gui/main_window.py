@@ -126,7 +126,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.1.0 (Python/PyQt6)"
+    VERSION = "v2.1.1 (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
@@ -145,6 +145,10 @@ class MainWindow(QMainWindow):
         self.recovery_start_elapsed: int = 0  # Elapsed seconds when recovery started
         self.recovery_marker: Optional[pg.InfiniteLine] = None  # Vertical line marker on chart
         self.current_above_10ma_since: Optional[float] = None  # Elapsed seconds when current first exceeded 10mA
+        
+        # Auto-ranging state
+        self.last_autorange_min: Optional[float] = None
+        self.last_autorange_max: Optional[float] = None
         
         # Initialize UI
         self.init_ui()
@@ -1141,17 +1145,61 @@ class MainWindow(QMainWindow):
             # Clear custom ticks so pyqtgraph generates them freely during auto-range
             self.chart_widget.getAxis('left').setTicks(None)
             self.chart_widget.getAxis('right').setTicks(None)
+            # Reset tracking variables
+            self.last_autorange_min = None
+            self.last_autorange_max = None
             _, voltages = self.test_data.get_voltage_series()
             if voltages:
+                # Use the SAME algorithm as on_data_received() to avoid initial jump
                 v_min, v_max = min(voltages), max(voltages)
                 span = v_max - v_min if v_max != v_min else 1.0
-                margin = span * (0.10 / 0.80)
-                self.chart_widget.setYRange(v_min - margin, v_max + margin, padding=0)
+                
+                # Enforce minimum span to prevent over-zooming on stable voltages
+                min_span = 0.5  # Minimum 0.5V range to avoid excessive zoom
+                if span < min_span:
+                    # Center the current range and expand to minimum span
+                    center = (v_min + v_max) / 2.0
+                    v_min = center - min_span / 2.0
+                    v_max = center + min_span / 2.0
+                    span = min_span
+                
+                margin = span * (0.10 / 0.80)  # 80% of window = data span → 10% margins each side
+                y_min = v_min - margin
+                y_max = v_max + margin
+                
+                # Round to nice intervals so gridlines align with top/bottom edges
+                # Use intervals based on the total range: 0.1V, 0.2V, 0.5V, 1.0V, etc.
+                total_range = y_max - y_min
+                if total_range <= 1.0:
+                    interval = 0.1
+                elif total_range <= 2.0:
+                    interval = 0.2
+                elif total_range <= 5.0:
+                    interval = 0.5
+                elif total_range <= 10.0:
+                    interval = 1.0
+                elif total_range <= 20.0:
+                    interval = 2.0
+                else:
+                    interval = 5.0
+                
+                # Round min down and max up to nearest interval
+                import math
+                y_min_rounded = math.floor(y_min / interval) * interval
+                y_max_rounded = math.ceil(y_max / interval) * interval
+                
+                self.chart_widget.setYRange(y_min_rounded, y_max_rounded, padding=0)
+                # Store initial range
+                self.last_autorange_min = y_min_rounded
+                self.last_autorange_max = y_max_rounded
         else:
             # Restore synchronized ticks and full battery-based range
             self.chart_widget.getAxis('left').setTicks(None)
             self.chart_widget.getAxis('right').setTicks(None)
             self.sync_axis_ticks()
+            # Reset tracking variables
+            self.last_autorange_min = None
+            self.last_autorange_max = None
 
     def _nice_axis_top(self, value: float, n: int = 5) -> float:
         """Round value up to the nearest nice number giving n integer-valued steps"""
@@ -1802,11 +1850,21 @@ class MainWindow(QMainWindow):
             y_min_rounded = math.floor(y_min / interval) * interval
             y_max_rounded = math.ceil(y_max / interval) * interval
             
-            # Clear custom ticks so pyqtgraph auto-generates labels for the narrowed range.
-            # Without this, full-scale custom ticks from sync_axis_ticks() fall outside the
-            # auto-range window and appear as missing labels.
-            self.chart_widget.getAxis('left').setTicks(None)
-            self.chart_widget.setYRange(y_min_rounded, y_max_rounded, padding=0)
+            # Only update the Y-axis if the range has actually changed
+            # This prevents unnecessary axis updates and visual flicker
+            if (self.last_autorange_min != y_min_rounded or 
+                self.last_autorange_max != y_max_rounded):
+                
+                # Clear custom ticks so pyqtgraph auto-generates labels for the narrowed range.
+                # Without this, full-scale custom ticks from sync_axis_ticks() fall outside the
+                # auto-range window and appear as missing labels.
+                self.chart_widget.getAxis('left').setTicks(None)
+                self.chart_widget.getAxis('right').setTicks(None)
+                self.chart_widget.setYRange(y_min_rounded, y_max_rounded, padding=0)
+                
+                # Store the new range
+                self.last_autorange_min = y_min_rounded
+                self.last_autorange_max = y_max_rounded
         
         # Switch X-axis to minutes after 300 seconds
         if times:
