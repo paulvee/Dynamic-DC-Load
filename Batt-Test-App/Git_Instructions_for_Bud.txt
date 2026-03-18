@@ -1,0 +1,89 @@
+==================================================================
+GIT INSTRUCTIONS - How to Push Your Changes to GitHub
+==================================================================
+
+Hi Bud,
+
+Here are the steps to push your changes to the Battery Tester repository:
+
+
+METHOD 1: Step-by-Step Commands
+---------------------------------
+
+1. Open PowerShell and navigate to the project folder:
+
+cd "C:\Users\[YourUserName]\Documents\Hobby\Battery Tester\Batt Tester"
+
+
+2. **UPDATE VERSION NUMBER** (Important!):
+
+Open gui\main_window.py in your editor and find this line (around line 107):
+
+    VERSION = "v2.0.a (Python/PyQt6)"
+
+Increment the letter at the end: a → b → c → d, etc.
+For example, if it says "v2.0.a", change it to "v2.0.b"
+
+Save the file after changing the version.
+
+
+3. Check what files you changed:
+
+git status
+
+
+4. Add all your changes:
+
+git add -A
+
+
+5. Commit with a description of what you did:
+
+git commit -m "Brief description of your changes"
+
+
+6. Pull any updates from the repository first (to avoid conflicts):
+
+git pull origin main
+
+
+7. Push your changes to GitHub:
+
+git push origin main
+
+
+8. Let Paul know that you've pushed your changes so he can pull them.
+
+
+METHOD 2: All-in-One Command
+-----------------------------
+
+If you prefer, you can run everything in one line (replace [YourUserName] with your Windows username):
+
+**REMEMBER: Update the version number FIRST in gui\main_window.py before running this!**
+
+cd "C:\Users\[YourUserName]\Documents\Hobby\Battery Tester\Batt Tester"; git add -A; git commit -m "Description of changes"; git pull origin main; git push origin main
+
+
+TROUBLESHOOTING
+---------------
+
+If you get a merge conflict message after "git pull":
+- Let Paul know immediately
+- Don't try to force push
+- Paul or Claude can help resolve the conflict
+
+
+If you need to see recent commits:
+
+git log --oneline -10
+
+
+If you're not sure if you have uncommitted changes:
+
+git status
+
+
+==================================================================
+Questions? Contact Paul or ask Claude in the chat!
+==================================================================
