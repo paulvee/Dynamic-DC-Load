@@ -126,7 +126,7 @@ class SerialWorker(QThread):
 class MainWindow(QMainWindow):
     """Main application window"""
     
-    VERSION = "v2.1.1 (Python/PyQt6)"
+    VERSION = "v2.2.2 (Python/PyQt6)"
     
     def __init__(self):
         super().__init__()
@@ -1912,6 +1912,13 @@ class MainWindow(QMainWindow):
         # Also append to message text box in Control tab
         if hasattr(self, 'message_text'):
             self._append_message(message)
+
+
+        # Stop test if communication timeout message is received from DL
+        if ('Comm Timeout' in message or 'PC Disconnected' in message or 'MSGSTComm Timeout' in message):
+            self.stop_test("DL communication timeout (DL stopped)")
+            QMessageBox.warning(self, "DL Communication Timeout", "The Dynamic Load has stopped due to a communication timeout. The test will be terminated.")
+            return
 
         # Check for test completion
         # Note: "Cutoff" does NOT stop the test - recovery monitoring continues
