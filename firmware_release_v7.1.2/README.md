@@ -1,8 +1,8 @@
-# Dynamic Load Firmware v7.1.1 - Installation Guide
+# Dynamic Load Firmware v7.1.2 - Installation Guide
 
 This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load controller.
 
-## What's New in v7.1.1
+## What's New in v7.1.2
 - Battery Tester Protocol - Optimized serial communication for Battery Tester v2.1.2+
 - Streamlined data reporting for improved performance
 - Enhanced compatibility with new Battery Tester features (Stop button, auto-ranging)
