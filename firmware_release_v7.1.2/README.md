@@ -3,6 +3,13 @@
 This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load controller.
 
 ## What's New in v7.1.1
+- Battery Tester Protocol - Optimized serial communication for Battery Tester v2.1.2+
+- Streamlined data reporting for improved performance
+- Enhanced compatibility with new Battery Tester features (Stop button, auto-ranging)
+Notes
+- This version is recommended for Battery Tester v2.1.2 and later
+
+## What's New in v7.1.1
 
 ### Bug Fixes
 - ✅ **Fan control in calibration mode** - Fan now properly stops during calibration mode
