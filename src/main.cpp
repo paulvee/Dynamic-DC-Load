@@ -164,7 +164,7 @@ void setup() {
     while (!Serial);
     vTaskDelay(2000 / portTICK_PERIOD_MS);
 
-    Serial.print("\\n\\r\\n\\rDynamic DC Load - Version ");
+    Serial.print("\n\r\n\rDynamic DC Load - Version ");
     Serial.println(FW_VERSION);
 
     // Initialize calibration manager and load values from Preferences
@@ -220,7 +220,7 @@ void setup() {
 
         CalibrationManager::printCalibration();
         Serial.println("\nEnter calibration commands:");
-        Serial.println("Type 'CAL SHOW' for help\n");
+        Serial.println("Type 'CAL SHOW' for help");
 
         // Wait for button release
         while (digitalRead(ENC_BUT) == LOW) {
@@ -308,6 +308,7 @@ void setup() {
                 }
             }
 
+            esp_task_wdt_reset();  // Feed watchdog (safe no-op if not subscribed)
             delay(10);
         }
 
