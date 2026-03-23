@@ -28,7 +28,7 @@ The following values can be calibrated:
 
 1. **Power off** the Dynamic Load completely
 2. **Press and hold** the encoder button
-3. **Power on** while continuing to hold the button
+3. **Press the EN button on the ESP32 board** to reset the ESP while continuing to hold the button
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
 5. **Release** the button
 6. **Connect** a serial terminal (9600 baud, see note below)
