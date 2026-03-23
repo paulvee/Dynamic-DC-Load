@@ -31,7 +31,7 @@ The following values can be calibrated:
 3. **Power on** while continuing to hold the button
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
 5. **Release** the button
-6. **Connect** a serial terminal (9600 baud, COM port varies)
+6. **Connect** a serial terminal — **use PuTTY or Tera Term** (see note below), 9600 baud, flow control: None
 
 **Important Timing:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
@@ -232,6 +232,26 @@ If values show as defaults, calibration was not saved - repeat `CAL SAVE`.
 - If save failed, try again
 
 ### Commands Not Working
+
+**Symptoms:** Typed commands are not recognised or produce no output
+
+**Solutions:**
+- Check baud rate is 9600
+- Ensure local echo is enabled in your terminal so you can see what you type
+- Commands are case-insensitive; try `cal show` or `CAL SHOW`
+- Press Enter after the command (not just Ctrl+Enter)
+
+### ESP32 Resets When Typing Commands
+
+**Symptoms:** ESP32 reboots (OLED goes dark, serial disconnects) the moment you send a command; works fine when idle
+
+**Cause:** PlatformIO Core 6.x serial monitor toggles the RTS line during data transmission. On ESP32 DevKit boards the RTS signal is wired through an RC circuit to the EN pin for auto-programming. Even with `monitor_dtr = 0` and `monitor_rts = 0` set in `platformio.ini`, this toggle still occurs during active data flow and resets the ESP32.
+
+**Solution:** Use **PuTTY** or **Tera Term** instead of the PlatformIO serial monitor for calibration:
+- Baud: 9600 | Data bits: 8 | Stop bits: 1 | Parity: None
+- **Flow control: None** — this is the critical setting that keeps RTS/DTR inactive
+
+The PlatformIO serial monitor works normally for all other (non-interactive) firmware operation.
 
 **Symptoms:** "ERROR: Unknown command" messages
 
