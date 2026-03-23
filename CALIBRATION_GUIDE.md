@@ -31,7 +31,11 @@ The following values can be calibrated:
 3. **Power on** while continuing to hold the button
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
 5. **Release** the button
-6. **Connect** a serial terminal — **use PuTTY or Tera Term** (see note below), 9600 baud, flow control: None
+6. **Connect** a serial terminal (9600 baud, see note below)
+
+> **⚠️ Do NOT use the VSCode/PlatformIO serial monitor for calibration.**
+> PlatformIO Core 6.x toggles the RTS line when sending data, which pulses the ESP32 EN pin and causes an immediate reset the moment you type a command.
+> Use **PuTTY** or **Tera Term** instead, with flow control set to **None** — this keeps RTS/DTR completely inactive.
 
 **Important Timing:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
