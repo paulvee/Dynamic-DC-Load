@@ -35,7 +35,7 @@ The following values can be calibrated:
 
 > **⚠️ Do NOT use the VSCode/PlatformIO serial monitor for calibration.**
 > PlatformIO Core 6.x toggles the RTS line when sending data, which pulses the ESP32 EN pin and causes an immediate reset the moment you type a command.
-> Use **PuTTY** or **Tera Term** instead, with flow control set to **None** — this keeps RTS/DTR completely inactive.
+> Use **PuTTY**, the Arduino IDE Serial Monitor, or **Tera Term** instead, with flow control set to **None** — this keeps RTS/DTR completely inactive.
 
 **Important Timing:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
