@@ -4,6 +4,22 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.3] - 2026-03-24
+
+### Changed
+- **Calibration system refactored** - Separated hardware gain from user calibration
+  - Added fixed `I_GAIN` constant (2.5) in `Config.h` — hardware current conversion factor, not user-adjustable
+  - `shuntVcalib` is now a trim factor around 1.0 (was 2.5) — much clearer calibration intent
+  - Current calculation is now `I_GAIN * shuntVcalib * raw_voltage`
+- **Renamed `DUTCurrent` to `DAC_ADC_TOLERANCE`** — better describes actual purpose (measured mV at DAC-ADC calibration point)
+- **Fixed serial output formatting** - Added `\r\n` prefix to `CAL SAVE`, `CAL RESET`, and `CAL EXIT` responses to prevent tight output in terminal
+- **Increased `shuntVcalib` display precision** from 4 to 6 decimal places in `CAL SHOW` output
+
+### Notes
+- Users with a previously saved `shuntVcalib` of 2.5 in NVS must run `CAL SHUNT 1.0` + `CAL SAVE` after flashing
+
+---
+
 ## [7.1.2] - 2026-03-17
 
 ### Changed

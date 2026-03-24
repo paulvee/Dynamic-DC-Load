@@ -107,7 +107,7 @@ double currOffset = 0.0;
 
 // Runtime calibration values (loaded from DL_Cal_Values.ini at boot)
 double dutVcalib = DEFAULT_DUT_V_CALIB;
-double DUTCurrent = DEFAULT_DUT_CURRENT;
+double DAC_ADC_TOLERANCE = DEFAULT_DAC_ADC_TOLERANCE;
 double shuntVcalib = DEFAULT_SHUNT_V_CALIB;
 double cvCalFactor = DEFAULT_CV_CAL_FACTOR;
 
@@ -1004,11 +1004,11 @@ void readShunt() {
 
     // Prepare averaged values for OLED display
     rawI_avg = avgCurrent.add(shuntVraw);
-    double local_dispCurrent = ADS.toVoltage(rawI_avg) * shuntVcalib;
+    double local_dispCurrent = ADS.toVoltage(rawI_avg) * I_GAIN * shuntVcalib;
 
     // Write to shared variables with mutex protection
     portENTER_CRITICAL(&mutex);
-    shuntV = ADS.toVoltage(shuntVraw) * shuntVcalib;
+    shuntV = ADS.toVoltage(shuntVraw) * I_GAIN * shuntVcalib;
     dispCurrent = local_dispCurrent;
     portEXIT_CRITICAL(&mutex);
 

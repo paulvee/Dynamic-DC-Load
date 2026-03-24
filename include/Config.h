@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.1.2";
+const String FW_VERSION = "7.1.3";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -106,11 +106,14 @@ const String FW_VERSION = "7.1.2";
 // Default values used if no saved calibration exists in NVS
 //=============================================================================
 
+// Fixed hardware gain constant: ADS1115 full-scale (6.144V) / shunt resistor scaling
+#define I_GAIN 2.5000  // Hardware current gain (V-to-A conversion factor) - do not change
+
 // Default calibration values (used if no saved calibration found)
-#define DEFAULT_DUT_V_CALIB 1.0       // Optional DUT voltage calibration factor
-#define DEFAULT_DUT_CURRENT 400.00    // DAC-ADC calibration point (mV)
-#define DEFAULT_SHUNT_V_CALIB 2.5000  // Current display calibration factor
-#define DEFAULT_CV_CAL_FACTOR 1.0     // CV trigger point voltage calibration factor
+#define DEFAULT_DUT_V_CALIB 1.0           // Optional DUT voltage calibration factor
+#define DEFAULT_DAC_ADC_TOLERANCE 400.00  // DAC-ADC calibration point in mV (measured voltage at calibration point)
+#define DEFAULT_SHUNT_V_CALIB 1.0000      // Current trim factor (1.0 = no correction; adjust around 1.0)
+#define DEFAULT_CV_CAL_FACTOR 1.0         // CV trigger point voltage calibration factor
 
 //=============================================================================
 // DAC LIMIT CONSTANTS

@@ -110,10 +110,10 @@ extern const double dc_cal_factor;
 extern double currOffset;
 
 // Runtime calibration values (loaded from DL_Cal_Values.ini)
-extern double dutVcalib;    // DUT voltage calibration factor
-extern double DUTCurrent;   // DAC-ADC calibration point (mV)
-extern double shuntVcalib;  // Current display calibration factor
-extern double cvCalFactor;  // CV mode trigger point calibration
+extern double dutVcalib;          // DUT voltage calibration factor
+extern double DAC_ADC_TOLERANCE;  // DAC-ADC calibration point in mV (measured voltage at calibration point)
+extern double shuntVcalib;        // Current display calibration factor
+extern double cvCalFactor;        // CV mode trigger point calibration
 
 //=============================================================================
 // RTOS TASK HANDLES

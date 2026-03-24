@@ -18,8 +18,8 @@ The following values can be calibrated:
 | Parameter | Description | Default | Notes |
 |-----------|-------------|---------|-------|
 | `dutVcalib` | DUT voltage display calibration | 1.0 | Adjust if voltage reading is incorrect |
-| `DUTCurrent` | DAC-ADC calibration point (mV) | 400.00 | deviation stored, but not used |
-| `shuntVcalib` | Current display calibration | 2.5000 | Adjust if current reading is incorrect |
+| `DAC_ADC_TOLERANCE` | Measured voltage at DAC-ADC calibration point (mV) | 400.00 | Deviation stored, but not actively used |
+| `shuntVcalib` | Current trim factor (multiplied with `I_GAIN` = 2.5) | 1.0000 | Adjust if current reading is incorrect |
 | `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | **Most commonly adjusted** |
 
 ## Quick Start: Entering Calibration Mode
@@ -71,17 +71,17 @@ CAL DUTV 1.005
 ```
 Adjusts the DUT voltage reading calibration.
 
-### Set Current Calibration Point
+### Set DAC-ADC Calibration Point
 ```
 CAL DUTC 400.00
 ```
-deviation is stored here, but not used.
+Stores the measured voltage at the DAC-ADC calibration point. Deviation is stored but not actively used in calculations.
 
 ### Set Current Display Calibration
 ```
-CAL SHUNT 2.5000
+CAL SHUNT 1.0000
 ```
-Adjusts the current reading calibration.
+Adjusts the current reading calibration. This is a trim factor applied on top of the fixed hardware gain (`I_GAIN` = 2.5). A value of `1.0000` means no correction; typical values are close to `1.0` (e.g. `0.998` or `1.003`).
 
 ### Save Values to Memory
 ```
@@ -116,8 +116,8 @@ Exits calibration mode. Power cycle to return to normal operation.
 > CAL SHOW
 === Current Calibration Values ===
 dutVcalib    : 1.000000
-DUTCurrent   : 400.00
-shuntVcalib  : 2.5000
+DAC_ADC_TOLER: 400.00
+shuntVcalib  : 1.000000
 cvCalFactor  : 1.000000
 ==================================
 
@@ -131,8 +131,8 @@ Calibration values saved to Preferences
 > CAL SHOW
 === Current Calibration Values ===
 dutVcalib    : 1.000000
-DUTCurrent   : 400.00
-shuntVcalib  : 2.5000
+DAC_ADC_TOLER: 400.00
+shuntVcalib  : 1.000000
 cvCalFactor  : 1.060600
 ==================================
 
@@ -193,11 +193,12 @@ https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
 3. Note measured vs. displayed current
 4. Calculate adjustment factor:
    ```
-   shuntVcalib = (measured / displayed) × current_shuntVcalib
+   shuntVcalib = measured / displayed
+   (e.g. measured 1.005A, displayed 1.000A → shuntVcalib = 1.005)
    ```
 5. Enter calibration mode and set:
    ```
-   CAL SHUNT 2.5125
+> CAL SHUNT 1.005
    CAL SAVE
    ```
 

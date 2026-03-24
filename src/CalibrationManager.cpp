@@ -43,7 +43,7 @@ bool CalibrationManager::loadCalibration() {
 
     // Load all values (with defaults as fallback)
     dutVcalib = preferences.getDouble("dutVcalib", DEFAULT_DUT_V_CALIB);
-    DUTCurrent = preferences.getDouble("DUTCurrent", DEFAULT_DUT_CURRENT);
+    DAC_ADC_TOLERANCE = preferences.getDouble("DAC_ADC_TOLERANCE", DEFAULT_DAC_ADC_TOLERANCE);
     shuntVcalib = preferences.getDouble("shuntVcalib", DEFAULT_SHUNT_V_CALIB);
     cvCalFactor = preferences.getDouble("cvCalFactor", DEFAULT_CV_CAL_FACTOR);
 
@@ -55,19 +55,19 @@ bool CalibrationManager::saveCalibration() {
     preferences.begin(PREFS_NAMESPACE, false);  // false = read/write
 
     preferences.putDouble("dutVcalib", dutVcalib);
-    preferences.putDouble("DUTCurrent", DUTCurrent);
+    preferences.putDouble("DAC_ADC_TOLERANCE", DAC_ADC_TOLERANCE);
     preferences.putDouble("shuntVcalib", shuntVcalib);
     preferences.putDouble("cvCalFactor", cvCalFactor);
 
     preferences.end();
 
-    Serial.println("Calibration values saved to Preferences");
+    Serial.println("\r\nCalibration values saved to Preferences");
     return true;
 }
 
 bool CalibrationManager::resetToDefaults() {
     dutVcalib = DEFAULT_DUT_V_CALIB;
-    DUTCurrent = DEFAULT_DUT_CURRENT;
+    DAC_ADC_TOLERANCE = DEFAULT_DAC_ADC_TOLERANCE;
     shuntVcalib = DEFAULT_SHUNT_V_CALIB;
     cvCalFactor = DEFAULT_CV_CAL_FACTOR;
 
@@ -80,10 +80,10 @@ void CalibrationManager::printCalibration() {
     Serial.println("\n=== Current Calibration Values ===");
     Serial.print("dutVcalib    : ");
     Serial.println(dutVcalib, 6);
-    Serial.print("DUTCurrent   : ");
-    Serial.println(DUTCurrent, 2);
+    Serial.print("DAC_ADC_TOLER: ");
+    Serial.println(DAC_ADC_TOLERANCE, 2);
     Serial.print("shuntVcalib  : ");
-    Serial.println(shuntVcalib, 4);
+    Serial.println(shuntVcalib, 6);
     Serial.print("cvCalFactor  : ");
     Serial.println(cvCalFactor, 6);
     Serial.println("==================================\n");
@@ -101,7 +101,7 @@ bool CalibrationManager::processCommand(const String& command) {
         Serial.println("  CAL SHOW              - Display current values");
         Serial.println("  CAL CV <value>        - Set cvCalFactor");
         Serial.println("  CAL DUTV <value>      - Set dutVcalib");
-        Serial.println("  CAL DUTC <value>      - Set DUTCurrent");
+        Serial.println("  CAL DUTC <value>      - Set DAC_ADC_TOLERANCE");
         Serial.println("  CAL SHUNT <value>     - Set shuntVcalib");
         Serial.println("  CAL SAVE              - Save to persistent storage");
         Serial.println("  CAL RESET             - Reset to defaults");
@@ -123,13 +123,13 @@ bool CalibrationManager::processCommand(const String& command) {
     // CAL RESET
     if (cmd == "CAL RESET") {
         resetToDefaults();
-        Serial.println("Use 'CAL SAVE' to persist these defaults");
+        Serial.println("\r\nUse 'CAL SAVE' to persist these defaults");
         return true;
     }
 
     // CAL EXIT
     if (cmd == "CAL EXIT") {
-        Serial.println("Exiting calibration mode - power cycle to restart");
+        Serial.println("\r\nExiting calibration mode - power cycle to restart");
         return true;
     }
 
@@ -164,9 +164,9 @@ bool CalibrationManager::processCommand(const String& command) {
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else if (param == "DUTC") {
-            DUTCurrent = value;
-            Serial.print("\r\nDUTCurrent set to: ");
-            Serial.println(DUTCurrent, 2);
+            DAC_ADC_TOLERANCE = value;
+            Serial.print("\r\nDAC_ADC_TOLERANCE set to: ");
+            Serial.println(DAC_ADC_TOLERANCE, 2);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else if (param == "SHUNT") {
@@ -187,7 +187,7 @@ bool CalibrationManager::processCommand(const String& command) {
     Serial.println("  CAL SHOW              - Display current values");
     Serial.println("  CAL CV <value>        - Set cvCalFactor");
     Serial.println("  CAL DUTV <value>      - Set dutVcalib");
-    Serial.println("  CAL DUTC <value>      - Set DUTCurrent");
+    Serial.println("  CAL DUTC <value>      - Set DAC_ADC_TOLERANCE");
     Serial.println("  CAL SHUNT <value>     - Set shuntVcalib");
     Serial.println("  CAL SAVE              - Save to persistent storage");
     Serial.println("  CAL RESET             - Reset to defaults");
