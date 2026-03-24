@@ -1,5 +1,7 @@
 # DL-Firmware-for-VSC
 
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/dynamic-dc-load)
+
 **ESP32 Dynamic DC Load Firmware — v7.1.6**  
 Platform: ESP32 DevKit1 | Build system: PlatformIO
 
