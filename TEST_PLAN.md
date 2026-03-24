@@ -1,10 +1,10 @@
-# Test Plan - Dynamic DC Load Firmware v7.1.1
+# Test Plan - Dynamic DC Load Firmware v7.1.6
 
-Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
+Comprehensive testing plan for Dynamic DC Load firmware v7.1.6
 
 **Test Date:** _______________  
 **Tester:** _______________  
-**Firmware Version:** 7.1.1  
+**Firmware Version:** 7.1.6  
 **Batt Test app Version:** _______________
 
 ---
@@ -599,6 +599,131 @@ Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
 
 ---
 
+## Test Suite 9: Two-Point Current Calibration (v7.1.6)
+
+**Purpose:** Verify the two-point current calibration system correctly compensates for DAC non-linearity so the OLED current display matches the encoder set-point.
+
+**Prerequisites:**
+- Device powered on and running normally (not in calibration mode) 
+- Serial terminal connected at 9600 baud
+- No external ammeter required
+
+---
+
+### Test 9.1: Enter Calibration Mode
+**Steps:**
+1. Power off ESP32
+2. Press and hold the encoder button
+3. Power on ESP32 while holding the button
+4. Wait for "CALIBRATION MODE" screen
+5. Release button
+
+**Expected Results:**
+- [ ] OLED displays "CALIBRATION MODE"
+- [ ] Device does not start normal operation
+- [ ] Fan stops (quiet operation)
+- [ ] Serial terminal shows calibration menu when "CAL" is typed
+
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
+### Test 9.2: CAL SHOW Displays Current Calibration Parameters
+**Steps:**
+1. Enter calibration mode
+2. Connect serial terminal at 9600 baud
+3. Type: `CAL SHOW`
+
+**Expected Results:**
+- [ ] Response shows `iCalLow` (factory default: 1.0)
+- [ ] Response shows `iRefLow` (factory default: 0.1000 A / 100 mA)
+- [ ] Response shows `iCalHigh` (factory default: 1.0)
+- [ ] Response shows `iRefHigh` (factory default: 8.0000 A / 8000 mA)
+- [ ] All other calibration parameters also displayed
+- [ ] No error messages
+
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
+### Test 9.3: CAL CURRL Sets Low-Point Calibration
+**Steps:**
+1. In normal operating mode, set load current to ~500 mA via rotary encoder
+2. Note the set-point and the OLED displayed current (e.g., set=500, oled=490)
+3. Enter calibration mode
+4. Type: `CAL CURRL 500 490`  (use your actual readings)
+
+**Expected Results:**
+- [ ] Command accepted without error
+- [ ] Confirmation message shows new `iCalLow` value (≈ 1.0204)
+- [ ] `CAL SHOW` reflects updated `iCalLow` and `iRefLow`
+
+**Actual set_mA used:** _______  **Actual oled_mA used:** _______  
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
+### Test 9.4: CAL CURRH Sets High-Point Calibration
+**Steps:**
+1. In normal operating mode, set load current to ~3000 mA via rotary encoder
+2. Note the set-point and the OLED displayed current (e.g., set=3000, oled=2985)
+3. Enter calibration mode
+4. Type: `CAL CURRH 3000 2985`  (use your actual readings)
+
+**Expected Results:**
+- [ ] Command accepted without error
+- [ ] Confirmation message shows new `iCalHigh` value (≈ 1.0050)
+- [ ] `CAL SHOW` reflects updated `iCalHigh` and `iRefHigh`
+
+**Actual set_mA used:** _______  **Actual oled_mA used:** _______  
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
+### Test 9.5: CAL SAVE Persists Values Across Power Cycle
+**Steps:**
+1. After setting values in Tests 9.3 and 9.4, type: `CAL SAVE`
+2. Type: `CAL EXIT`
+3. Power cycle the ESP32
+4. Enter calibration mode again
+5. Type: `CAL SHOW`
+
+**Expected Results:**
+- [ ] `CAL SAVE` returns success confirmation
+- [ ] After power cycle, `CAL SHOW` shows the same values entered in 9.3/9.4
+- [ ] Values not lost or reset to factory defaults
+- [ ] NVS (non-volatile) storage working correctly
+
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
+### Test 9.6: Calibration Accuracy Verification
+**Steps:**
+1. After saving calibration (Test 9.5), power cycle to normal operation
+2. Set load current to the same low-point used in Test 9.3 — observe OLED
+3. Set load current to the same high-point used in Test 9.4 — observe OLED
+4. Set an intermediate current (e.g., midway between low and high) — observe OLED
+
+**Expected Results:**
+- [ ] At low-point: OLED displays ≈ set-point (within ±5 mA)
+- [ ] At high-point: OLED displays ≈ set-point (within ±15 mA)
+- [ ] At mid-point: OLED displays ≈ set-point via interpolation (within ±20 mA)
+- [ ] Calibration effect consistent across the full range
+
+**Low-point set:** _______ mA  **OLED shows:** _______ mA  
+**High-point set:** _______ mA  **OLED shows:** _______ mA  
+**Mid-point set:** _______ mA  **OLED shows:** _______ mA  
+**Status:** ⬜ PASS  ⬜ FAIL  
+**Notes:** _______________________________________________
+
+---
+
 ## Test Summary
 
 | Test Suite | Tests | Pass | Fail | N/A |
@@ -612,7 +737,8 @@ Comprehensive testing plan for Dynamic DC Load firmware v7.1.1
 | 7. Backward Compat | 2 | ___ | ___ | ___ |
 | 8. Edge Cases | 5 | ___ | ___ | ___ |
 | 9. Performance | 2 | ___ | ___ | ___ |
-| **TOTAL** | **30** | ___ | ___ | ___ |
+| 10. Current Calibration (v7.1.6) | 6 | ___ | ___ | ___ |
+| **TOTAL** | **36** | ___ | ___ | ___ |
 
 ---
 
@@ -659,7 +785,7 @@ ________________________________________________________________
 
 ---
 
-*Test Plan Version: 1.1*  
+*Test Plan Version: 1.2*  
 *Created: March 11, 2026*  
-*Updated: March 16, 2026*  
-*For Firmware: v7.1.1*
+*Updated: March 24, 2026*  
+*For Firmware: v7.1.6*
