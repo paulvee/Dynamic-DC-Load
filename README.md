@@ -1,6 +1,6 @@
 # DL-Firmware-for-VSC
 
-**ESP32 Dynamic DC Load Firmware — v7.1.3**  
+**ESP32 Dynamic DC Load Firmware — v7.1.6**  
 Platform: ESP32 DevKit1 | Build system: PlatformIO
 
 This is the development repository for the ESP32-based Dynamic DC Load firmware. It provides precision DC load control with constant current, voltage, power and resistance modes, plus automated battery testing.

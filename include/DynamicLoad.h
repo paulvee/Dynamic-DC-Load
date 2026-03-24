@@ -112,7 +112,10 @@ extern double currOffset;
 // Runtime calibration values (loaded from DL_Cal_Values.ini)
 extern double dutVcalib;          // DUT voltage calibration factor
 extern double DAC_ADC_TOLERANCE;  // DAC-ADC calibration point in mV (measured voltage at calibration point)
-extern double shuntVcalib;        // Current display calibration factor
+extern double iCalLow;            // Current correction factor at low reference point
+extern double iRefLow;            // True current at low calibration point (A)
+extern double iCalHigh;           // Current correction factor at high reference point
+extern double iRefHigh;           // True current at high calibration point (A)
 extern double cvCalFactor;        // CV mode trigger point calibration
 
 //=============================================================================

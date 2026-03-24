@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.1.3";
+const String FW_VERSION = "7.1.6";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -112,8 +112,15 @@ const String FW_VERSION = "7.1.3";
 // Default calibration values (used if no saved calibration found)
 #define DEFAULT_DUT_V_CALIB 1.0           // Optional DUT voltage calibration factor
 #define DEFAULT_DAC_ADC_TOLERANCE 400.00  // DAC-ADC calibration point in mV (measured voltage at calibration point)
-#define DEFAULT_SHUNT_V_CALIB 1.0000      // Current trim factor (1.0 = no correction; adjust around 1.0)
 #define DEFAULT_CV_CAL_FACTOR 1.0         // CV trigger point voltage calibration factor
+
+// Two-point current calibration defaults
+// iCalLow/High: correction factors (ammeter / DL-displayed) at each reference point
+// iRefLow/High: the true (ammeter) current at each calibration point in Amps
+#define DEFAULT_ICAL_LOW 1.0000   // Correction factor at low reference point
+#define DEFAULT_IREF_LOW 0.1      // True current at low calibration point (A)
+#define DEFAULT_ICAL_HIGH 1.0000  // Correction factor at high reference point
+#define DEFAULT_IREF_HIGH 8.0     // True current at high calibration point (A)
 
 //=============================================================================
 // DAC LIMIT CONSTANTS

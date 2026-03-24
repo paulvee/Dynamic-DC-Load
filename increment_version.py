@@ -46,5 +46,5 @@ def increment_version(source, target, env):
     else:
         print("  ERROR: Could not find version string in Config.h")
 
-# Register pre-build action
-env.AddPreAction("buildprog", increment_version)
+# Auto-increment disabled - version is now managed manually before releases
+# env.AddPreAction("buildprog", increment_version)

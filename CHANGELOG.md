@@ -4,6 +4,27 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.6] - 2026-03-24
+
+### Added
+- **Two-point current calibration** — replaces single `shuntVcalib` trim factor with a low and high reference point plus linear interpolation between them
+  - New NVS parameters: `iCalLow`, `iRefLow`, `iCalHigh`, `iRefHigh`
+  - New commands: `CAL CURRL <set_mA> <oled_mA>` and `CAL CURRH <set_mA> <oled_mA>`
+  - Values entered as mA; auto-converted to A internally
+  - Correction factor applied flat below low reference and above high reference; interpolated between
+  - Goal: set current (encoder) matches OLED displayed current across full operating range
+
+### Changed
+- `CAL SHUNT` command removed; replaced by `CAL CURRL` / `CAL CURRH`
+- `shuntVcalib` NVS key retired; new keys are `iCalLow`, `iRefLow`, `iCalHigh`, `iRefHigh` (default 1.0/0.1A/1.0/8.0A — safe on first boot)
+- Updated `CALIBRATION_GUIDE.md` with new two-point procedure and command reference
+
+### Notes
+- Old `shuntVcalib` NVS key is simply orphaned — no migration needed
+- Calibration procedure requires no external ammeter; collect set vs OLED readings during normal operation, then enter values in cal mode
+
+---
+
 ## [7.1.3] - 2026-03-24
 
 ### Changed

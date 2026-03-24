@@ -108,7 +108,10 @@ double currOffset = 0.0;
 // Runtime calibration values (loaded from DL_Cal_Values.ini at boot)
 double dutVcalib = DEFAULT_DUT_V_CALIB;
 double DAC_ADC_TOLERANCE = DEFAULT_DAC_ADC_TOLERANCE;
-double shuntVcalib = DEFAULT_SHUNT_V_CALIB;
+double iCalLow = DEFAULT_ICAL_LOW;    // Current correction factor at low reference point
+double iRefLow = DEFAULT_IREF_LOW;    // True current at low calibration point (A)
+double iCalHigh = DEFAULT_ICAL_HIGH;  // Current correction factor at high reference point
+double iRefHigh = DEFAULT_IREF_HIGH;  // True current at high calibration point (A)
 double cvCalFactor = DEFAULT_CV_CAL_FACTOR;
 
 // Battery mode variables
@@ -1004,11 +1007,35 @@ void readShunt() {
 
     // Prepare averaged values for OLED display
     rawI_avg = avgCurrent.add(shuntVraw);
-    double local_dispCurrent = ADS.toVoltage(rawI_avg) * I_GAIN * shuntVcalib;
+
+    // Two-point linear interpolation of current correction factor:
+    // - Below iRefLow  : use iCalLow flat
+    // - Above iRefHigh : use iCalHigh flat
+    // - In between     : interpolate proportionally
+    double rawCurrent = ADS.toVoltage(shuntVraw) * I_GAIN;
+    double calFactor;
+    if (rawCurrent <= iRefLow) {
+        calFactor = iCalLow;
+    } else if (rawCurrent >= iRefHigh) {
+        calFactor = iCalHigh;
+    } else {
+        calFactor = iCalLow + (rawCurrent - iRefLow) / (iRefHigh - iRefLow) * (iCalHigh - iCalLow);
+    }
+
+    double rawCurrentAvg = ADS.toVoltage(rawI_avg) * I_GAIN;
+    double calFactorAvg;
+    if (rawCurrentAvg <= iRefLow) {
+        calFactorAvg = iCalLow;
+    } else if (rawCurrentAvg >= iRefHigh) {
+        calFactorAvg = iCalHigh;
+    } else {
+        calFactorAvg = iCalLow + (rawCurrentAvg - iRefLow) / (iRefHigh - iRefLow) * (iCalHigh - iCalLow);
+    }
+    double local_dispCurrent = rawCurrentAvg * calFactorAvg;
 
     // Write to shared variables with mutex protection
     portENTER_CRITICAL(&mutex);
-    shuntV = ADS.toVoltage(shuntVraw) * I_GAIN * shuntVcalib;
+    shuntV = rawCurrent * calFactor;
     dispCurrent = local_dispCurrent;
     portEXIT_CRITICAL(&mutex);
 

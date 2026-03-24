@@ -44,7 +44,10 @@ bool CalibrationManager::loadCalibration() {
     // Load all values (with defaults as fallback)
     dutVcalib = preferences.getDouble("dutVcalib", DEFAULT_DUT_V_CALIB);
     DAC_ADC_TOLERANCE = preferences.getDouble("DAC_ADC_TOLERANCE", DEFAULT_DAC_ADC_TOLERANCE);
-    shuntVcalib = preferences.getDouble("shuntVcalib", DEFAULT_SHUNT_V_CALIB);
+    iCalLow = preferences.getDouble("iCalLow", DEFAULT_ICAL_LOW);
+    iRefLow = preferences.getDouble("iRefLow", DEFAULT_IREF_LOW);
+    iCalHigh = preferences.getDouble("iCalHigh", DEFAULT_ICAL_HIGH);
+    iRefHigh = preferences.getDouble("iRefHigh", DEFAULT_IREF_HIGH);
     cvCalFactor = preferences.getDouble("cvCalFactor", DEFAULT_CV_CAL_FACTOR);
 
     preferences.end();
@@ -56,7 +59,10 @@ bool CalibrationManager::saveCalibration() {
 
     preferences.putDouble("dutVcalib", dutVcalib);
     preferences.putDouble("DAC_ADC_TOLERANCE", DAC_ADC_TOLERANCE);
-    preferences.putDouble("shuntVcalib", shuntVcalib);
+    preferences.putDouble("iCalLow", iCalLow);
+    preferences.putDouble("iRefLow", iRefLow);
+    preferences.putDouble("iCalHigh", iCalHigh);
+    preferences.putDouble("iRefHigh", iRefHigh);
     preferences.putDouble("cvCalFactor", cvCalFactor);
 
     preferences.end();
@@ -68,7 +74,10 @@ bool CalibrationManager::saveCalibration() {
 bool CalibrationManager::resetToDefaults() {
     dutVcalib = DEFAULT_DUT_V_CALIB;
     DAC_ADC_TOLERANCE = DEFAULT_DAC_ADC_TOLERANCE;
-    shuntVcalib = DEFAULT_SHUNT_V_CALIB;
+    iCalLow = DEFAULT_ICAL_LOW;
+    iRefLow = DEFAULT_IREF_LOW;
+    iCalHigh = DEFAULT_ICAL_HIGH;
+    iRefHigh = DEFAULT_IREF_HIGH;
     cvCalFactor = DEFAULT_CV_CAL_FACTOR;
 
     Serial.println("Calibration reset to defaults");
@@ -82,8 +91,14 @@ void CalibrationManager::printCalibration() {
     Serial.println(dutVcalib, 6);
     Serial.print("DAC_ADC_TOLER: ");
     Serial.println(DAC_ADC_TOLERANCE, 2);
-    Serial.print("shuntVcalib  : ");
-    Serial.println(shuntVcalib, 6);
+    Serial.print("iCalLow      : ");
+    Serial.println(iCalLow, 6);
+    Serial.print("iRefLow  (A) : ");
+    Serial.println(iRefLow, 3);
+    Serial.print("iCalHigh     : ");
+    Serial.println(iCalHigh, 6);
+    Serial.print("iRefHigh (A) : ");
+    Serial.println(iRefHigh, 3);
     Serial.print("cvCalFactor  : ");
     Serial.println(cvCalFactor, 6);
     Serial.println("==================================\n");
@@ -102,7 +117,8 @@ bool CalibrationManager::processCommand(const String& command) {
         Serial.println("  CAL CV <value>        - Set cvCalFactor");
         Serial.println("  CAL DUTV <value>      - Set dutVcalib");
         Serial.println("  CAL DUTC <value>      - Set DAC_ADC_TOLERANCE");
-        Serial.println("  CAL SHUNT <value>     - Set shuntVcalib");
+        Serial.println("  CAL CURRL <set_mA> <oled_mA> - Calibrate low current point in mA");
+        Serial.println("  CAL CURRH <set_mA> <oled_mA> - Calibrate high current point in mA");
         Serial.println("  CAL SAVE              - Save to persistent storage");
         Serial.println("  CAL RESET             - Reset to defaults");
         Serial.println("  CAL EXIT              - Exit calibration mode");
@@ -169,16 +185,56 @@ bool CalibrationManager::processCommand(const String& command) {
             Serial.println(DAC_ADC_TOLERANCE, 2);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
-        } else if (param == "SHUNT") {
-            shuntVcalib = value;
-            Serial.print("\r\nshuntVcalib set to: ");
-            Serial.println(shuntVcalib, 4);
+        } else if (param == "CURRL") {
+            // Expects two values: <set> <oled>
+            // Values may be in A or mA - if > 10, assumed mA and auto-converted
+            int sp2 = valueStr.indexOf(' ');
+            if (sp2 == -1) {
+                Serial.println("\r\nERROR: Format: CAL CURRL <set_mA> <oled_mA>");
+                return false;
+            }
+            double setA = valueStr.substring(0, sp2).toDouble();
+            double dispA = valueStr.substring(sp2 + 1).toDouble();
+            if (setA > 10.0) setA /= 1000.0;    // mA -> A
+            if (dispA > 10.0) dispA /= 1000.0;  // mA -> A
+            if (dispA < 0.001) {
+                Serial.println("\r\nERROR: OLED reading is zero or missing");
+                return false;
+            }
+            iCalLow = setA / dispA;
+            iRefLow = setA;
+            Serial.print("\r\niCalLow set to: ");
+            Serial.println(iCalLow, 6);
+            Serial.print("iRefLow set to: ");
+            Serial.println(iRefLow, 3);
+            Serial.println("Use 'CAL SAVE' to persist");
+            return true;
+        } else if (param == "CURRH") {
+            int sp2 = valueStr.indexOf(' ');
+            if (sp2 == -1) {
+                Serial.println("\r\nERROR: Format: CAL CURRH <set_mA> <oled_mA>");
+                return false;
+            }
+            double setA = valueStr.substring(0, sp2).toDouble();
+            double dispA = valueStr.substring(sp2 + 1).toDouble();
+            if (setA > 10.0) setA /= 1000.0;    // mA -> A
+            if (dispA > 10.0) dispA /= 1000.0;  // mA -> A
+            if (dispA < 0.001) {
+                Serial.println("\r\nERROR: OLED reading is zero or missing");
+                return false;
+            }
+            iCalHigh = setA / dispA;
+            iRefHigh = setA;
+            Serial.print("\r\niCalHigh set to: ");
+            Serial.println(iCalHigh, 6);
+            Serial.print("iRefHigh set to: ");
+            Serial.println(iRefHigh, 3);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else {
             Serial.print("\r\nERROR: Unknown parameter '");
             Serial.print(param);
-            Serial.println("'. Valid: CV, DUTV, DUTC, SHUNT");
+            Serial.println("'. Valid: CV, DUTV, DUTC, CURRL, CURRH");
             return false;
         }
     }
@@ -188,7 +244,8 @@ bool CalibrationManager::processCommand(const String& command) {
     Serial.println("  CAL CV <value>        - Set cvCalFactor");
     Serial.println("  CAL DUTV <value>      - Set dutVcalib");
     Serial.println("  CAL DUTC <value>      - Set DAC_ADC_TOLERANCE");
-    Serial.println("  CAL SHUNT <value>     - Set shuntVcalib");
+    Serial.println("  CAL CURRL <set_mA> <oled_mA> - Calibrate low current point in mA");
+    Serial.println("  CAL CURRH <set_mA> <oled_mA> - Calibrate high current point in mA");
     Serial.println("  CAL SAVE              - Save to persistent storage");
     Serial.println("  CAL RESET             - Reset to defaults");
     Serial.println("  CAL EXIT              - Exit calibration mode");

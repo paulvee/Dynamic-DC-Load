@@ -19,7 +19,10 @@ The following values can be calibrated:
 |-----------|-------------|---------|-------|
 | `dutVcalib` | DUT voltage display calibration | 1.0 | Adjust if voltage reading is incorrect |
 | `DAC_ADC_TOLERANCE` | Measured voltage at DAC-ADC calibration point (mV) | 400.00 | Deviation stored, but not actively used |
-| `shuntVcalib` | Current trim factor (multiplied with `I_GAIN` = 2.5) | 1.0000 | Adjust if current reading is incorrect |
+| `iCalLow` | Current correction factor at low calibration point | 1.0 | Set automatically by `CAL CURRL` |
+| `iRefLow` | True (ammeter) current at the low calibration point (A) | 0.1 | Set automatically by `CAL CURRL` |
+| `iCalHigh` | Current correction factor at high calibration point | 1.0 | Set automatically by `CAL CURRH` |
+| `iRefHigh` | True (ammeter) current at the high calibration point (A) | 8.0 | Set automatically by `CAL CURRH` |
 | `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | **Most commonly adjusted** |
 
 ## Quick Start: Entering Calibration Mode
@@ -61,13 +64,13 @@ Displays all current calibration values with full precision.
 
 ### Set CV Mode Calibration
 ```
-CAL CV 1.0606
+CAL CV 1.0000
 ```
 Sets the CV mode trigger voltage calibration factor.
 
 ### Set Voltage Display Calibration
 ```
-CAL DUTV 1.005
+CAL DUTV 1.0000 (can be 0.xxxx or 1.xxxx)
 ```
 Adjusts the DUT voltage reading calibration.
 
@@ -75,13 +78,19 @@ Adjusts the DUT voltage reading calibration.
 ```
 CAL DUTC 400.00
 ```
-Stores the measured voltage at the DAC-ADC calibration point. Deviation is stored but not actively used in calculations.
+Stores the measured voltage at the DAC-ADC calibration point based on component tolerances. Deviation is stored but not actively used in calculations.
 
-### Set Current Display Calibration
+### Calibrate Low Current Point
 ```
-CAL SHUNT 1.0000
+CAL CURRL 0.100 0.099
 ```
-Adjusts the current reading calibration. This is a trim factor applied on top of the fixed hardware gain (`I_GAIN` = 2.5). A value of `1.0000` means no correction; typical values are close to `1.0` (e.g. `0.998` or `1.003`).
+Sets the low-current calibration point. Supply two values: the **set current** (what the encoder was set to, in A) then the **OLED reading** (what the display showed at that current). The firmware calculates the correction factor as `set / oled` and stores the set current as the low reference.
+
+### Calibrate High Current Point
+```
+CAL CURRH 3.000 3.022
+```
+Same as above but for the high-current point. Use the highest current your setup can comfortably deliver. The firmware applies linear interpolation between the two points for any current in between, and uses the nearest flat factor outside that range.
 
 ### Save Values to Memory
 ```
@@ -117,24 +126,33 @@ Exits calibration mode. Power cycle to return to normal operation.
 === Current Calibration Values ===
 dutVcalib    : 1.000000
 DAC_ADC_TOLER: 400.00
-shuntVcalib  : 1.000000
+iCalLow      : 1.000000
+iRefLow  (A) : 0.100
+iCalHigh     : 1.000000
+iRefHigh (A) : 8.000
 cvCalFactor  : 1.000000
 ==================================
 
-> CAL CV 1.0606
-cvCalFactor set to: 1.060600
+> CAL CV 1.0000
+cvCalFactor set to: 1.000000
+Use 'CAL SAVE' to persist
+
+> CAL DUTV 1.0000
+dutVcalib set to: 1.000000
+Use 'CAL SAVE' to persist
+
+> CAL CURRL 0.100 0.099
+iCalLow set to: 1.010101
+iRefLow set to: 0.100
+Use 'CAL SAVE' to persist
+
+> CAL CURRH 3.000 3.022
+iCalHigh set to: 0.992720
+iRefHigh set to: 3.000
 Use 'CAL SAVE' to persist
 
 > CAL SAVE
 Calibration values saved to Preferences
-
-> CAL SHOW
-=== Current Calibration Values ===
-dutVcalib    : 1.000000
-DAC_ADC_TOLER: 400.00
-shuntVcalib  : 1.000000
-cvCalFactor  : 1.060600
-==================================
 
 > CAL EXIT
 Exiting calibration mode - power cycle to restart
@@ -183,24 +201,50 @@ https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
    CAL SAVE
    ```
 
-### Current Display Calibration
+### Current Display Calibration (Two-Point)
 
-**Problem:** Current display doesn't match calibrated ammeter
+In this calibration you are making the OLED current display match what you set with the rotary encoder. When you set 100 mA, you want the OLED to show 100 mA — and the power supply current should agree. Any deviation is measured at two points (low and high), and the firmware interpolates between them so the correction applies accurately across the full range.
 
-**Procedure:**
-1. Set a known current load (e.g., 1.000A constant current mode)
-2. Measure with a calibrated ammeter in series
-3. Note measured vs. displayed current
-4. Calculate adjustment factor:
-   ```
-   shuntVcalib = measured / displayed
-   (e.g. measured 1.005A, displayed 1.000A → shuntVcalib = 1.005)
-   ```
-5. Enter calibration mode and set:
-   ```
-> CAL SHUNT 1.005
-   CAL SAVE
-   ```
+No ammeter is required. Connect your power supply to the load (sense leads on, sense enabled), set the voltage to 10V and the current limit to just above your intended high calibration point.
+
+**Phase 1 — Collect the readings in normal operation**
+
+**1.** Boot the Dynamic Load normally (do not hold the encoder button).
+
+**2.** In CC mode, use the encoder to set the load to **100 mA (0.100 A)** and turn the load ON. Give the display a moment to settle.
+
+**3.** Note the OLED current reading. For example: set = **0.100 A**, OLED shows **0.099 A**.
+
+**4.** Turn the encoder to increase the current to the highest value your setup allows (e.g. 3 A, 6 A, 8 A). Wait for the display to settle.
+
+**5.** Note the OLED reading again. For example: set = **3.000 A**, OLED shows **3.022 A**.
+
+> **Note:** The high point does not have to be 8 A — use whatever maximum current your setup can actually deliver.
+
+**6.** Turn the load OFF.
+
+**Phase 2 — Enter calibration mode and type the values**
+
+**7.** Enter calibration mode: hold the encoder button, momentarily press the EN button on the ESP32 while keeping it pressed, and hold until you see "CALIBRATION MODE" on the display. Release the button.
+
+**8.** Type the low-point pair — set current first, then OLED reading — and press Enter:
+```
+CAL CURRL 0.100 0.099
+```
+
+**9.** Type the high-point pair and press Enter:
+```
+CAL CURRH 3.000 3.022
+```
+
+**10.** Save:
+```
+CAL SAVE
+```
+
+**11.** Exit calibration mode, power cycle, and verify. Set the load to a mid-range current and check that the OLED matches. If anything looks off, repeat Phase 1 for just that point and redo the corresponding `CAL CURRL` or `CAL CURRH` — you don't need to redo both.
+
+> **Note:** The two correction factors act independently. Below your low reference current the low-point factor is used flat. Above your high reference current the high-point factor is used flat. In between, the firmware interpolates linearly.
 
 ## Verifying Calibration Persists
 
