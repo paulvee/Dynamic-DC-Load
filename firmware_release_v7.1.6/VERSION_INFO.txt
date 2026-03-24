@@ -1,0 +1,70 @@
+Dynamic DC Load Firmware - Version 7.1.6
+=========================================
+
+Release Date: March 24, 2026
+Build: ESP32 DevKit1, Arduino Framework
+Repository: https://github.com/paulvee/DL-Firmware-for-VSC
+
+---
+
+WHAT'S NEW IN v7.1.6
+--------------------
+
+Changes:
+  • Two-point current calibration system
+    - Replaces single-point shuntVcalib with two anchor points
+    - Compensates for DAC non-linearity across the full current range
+    - No external ammeter required — compares set current vs. OLED display
+    - New commands: CAL CURRL (low-point) and CAL CURRH (high-point)
+    - Both accept: <set_mA> <oled_mA>  (values in milliamps)
+
+---
+
+v7.1.2 FEATURES (INCLUDED)
+---------------------------
+
+  • Battery Tester Protocol - Optimized serial communication
+    - Streamlined data reporting for improved performance
+    - Enhanced compatibility with Battery Tester v2.1.0+ features
+    - Supports Stop button and auto-ranging capabilities
+
+---
+
+v7.1.1 FEATURES (INCLUDED)
+---------------------------
+
+Bug Fixes:
+  • Fan control in calibration mode now works correctly
+    - Moved fan PWM channel setup earlier in boot sequence
+
+---
+
+v7.1.0 FEATURES (INCLUDED)
+---------------------------
+
+  • Runtime calibration system — calibrate without recompilation
+  • Boot-time calibration mode — hold encoder button during power-on
+  • ESP32 Preferences storage — calibration persists across firmware updates
+  • Serial command interface — calibration commands via serial terminal
+  • Binary distribution friendly — no development tools needed for calibration
+
+---
+
+FILES IN THIS PACKAGE
+---------------------
+
+  bootloader.bin   - ESP32 bootloader (flash at 0x1000)
+  partitions.bin   - Partition table (flash at 0x8000)
+  firmware.bin     - Main application (flash at 0x10000)
+  flash_firmware.bat - Windows auto-flash script
+  QUICK_START.txt  - Calibration quick reference
+  README.md        - Full installation and usage guide
+
+---
+
+COMPATIBLE HARDWARE
+-------------------
+
+  • ESP32 DevKit1 (38-pin)
+  • Custom Dynamic DC Load PCB
+  • Recommended: Battery Tester v2.1.2 or later
