@@ -12,7 +12,6 @@ This is the development repository for the ESP32-based Dynamic DC Load firmware.
 | [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) | How to calibrate voltage, current and CV mode at runtime |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [TEST_PLAN.md](TEST_PLAN.md) | Test procedures |
-| [NEXT_STEPS.md](NEXT_STEPS.md) | Planned improvements |
 
 ## Quick Start
 
