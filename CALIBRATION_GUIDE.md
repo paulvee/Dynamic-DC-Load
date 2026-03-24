@@ -26,19 +26,17 @@ The following values can be calibrated:
 
 ### Method: Button Hold at Boot
 
-1. **Power off** the Dynamic Load completely
+1. **Connect** a serial terminal (9600 baud, see note below)
 2. **Press and hold** the encoder button
-3. **Power on** while continuing to hold the button
+3. **Momentarily press the EN button on the ESP32 board** to reset the ESP while continuing to hold the button
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
-5. **Release** the button
-6. **Connect** a serial terminal (9600 baud, see note below)
-
-> Use **PuTTY** or **Tera Term** with flow control set to **None** — this keeps RTS/DTR completely inactive.
+5. **Release** the rotary encoder button
 
 > **⚠️ Do NOT use the VSCode/PlatformIO serial monitor or the Arduino IDE serial monitor for calibration.**
 > Both toggle the RTS line when sending data, which pulses the ESP32 EN pin and causes an immediate reset the moment you type a command.
+> Use **PuTTY** or **Tera Term** instead, with flow control set to **None** — this keeps RTS/DTR completely inactive.
 
-**Important Timing:** Start pressing the button when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
+**Important Timing:** Start pressing the rotary encoder button before you reset the ESP32 or start pressing when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
 ### Display Shows:
 ```
