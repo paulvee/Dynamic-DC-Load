@@ -153,30 +153,30 @@ bool CalibrationManager::processCommand(const String& command) {
         // Set the appropriate parameter
         if (param == "CV") {
             cvCalFactor = value;
-            Serial.print("cvCalFactor set to: ");
+            Serial.print("\r\ncvCalFactor set to: ");
             Serial.println(cvCalFactor, 6);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else if (param == "DUTV") {
             dutVcalib = value;
-            Serial.print("dutVcalib set to: ");
+            Serial.print("\r\ndutVcalib set to: ");
             Serial.println(dutVcalib, 6);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else if (param == "DUTC") {
             DUTCurrent = value;
-            Serial.print("DUTCurrent set to: ");
+            Serial.print("\r\nDUTCurrent set to: ");
             Serial.println(DUTCurrent, 2);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else if (param == "SHUNT") {
             shuntVcalib = value;
-            Serial.print("shuntVcalib set to: ");
+            Serial.print("\r\nshuntVcalib set to: ");
             Serial.println(shuntVcalib, 4);
             Serial.println("Use 'CAL SAVE' to persist");
             return true;
         } else {
-            Serial.print("ERROR: Unknown parameter '");
+            Serial.print("\r\nERROR: Unknown parameter '");
             Serial.print(param);
             Serial.println("'. Valid: CV, DUTV, DUTC, SHUNT");
             return false;
