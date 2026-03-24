@@ -1,0 +1,21 @@
+# Battery Tester Python - Dependencies
+
+# Serial Communication
+pyserial>=3.5
+
+# GUI Framework
+PyQt6>=6.6.0
+PyQt6-Qt6>=6.6.0
+
+# Charting and Visualization
+pyqtgraph>=0.13.3
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Configuration (built-in, no install needed)
+# configparser - included in Python standard library
+
+# Optional: For packaging
+# pyinstaller>=6.0.0
