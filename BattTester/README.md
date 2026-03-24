@@ -20,6 +20,24 @@ A modern Python/PyQt6 application for battery discharge testing and analysis. Wo
 7. Select your COM port and click Connect
 8. Configure test parameters and click Start
 
+## Windows SmartScreen Warning
+
+When running the downloaded `.exe` for the first time, Windows may show:
+**"Windows protected your PC"** — this is expected for any unsigned executable and does not indicate malware.
+
+**To run it:**
+1. Click **"More info"** in the SmartScreen dialog
+2. Click **"Run anyway"**
+
+This is a one-time confirmation per machine. After that it runs without prompting.
+
+**If you see "This app can't run on your PC"** (different message):
+1. Right-click the `.exe` → **Properties**
+2. At the bottom, check **Unblock** → click **OK**
+3. Then run it again (you may still need to click "More info" → "Run anyway" once)
+
+> The app is open source — you can inspect the full source code in the `BattTester/` folder of this repository.
+
 ## Installation
 
 ### Prerequisites
