@@ -63,7 +63,7 @@ String lltoString(unsigned long ll);
  */
 void updateOledDisplay(void* pvParameters) {
     // boot message with core info
-    Serial.printf("- Display task started, running on core %d\n", xPortGetCoreID());
+    Serial.printf("- Display task started, running on core %d\r\n", xPortGetCoreID());
 
     while (true) {
         // Copy global variables from main core to minimize access time

@@ -68,7 +68,7 @@ void IRAM_ATTR read_encoder() {
  */
 void process_encoder(void* pvParameters) {
     // boot message with core info
-    Serial.printf("- Encoder task started, running on core %d\n", xPortGetCoreID());
+    Serial.printf("- Encoder task started, running on core %d\r\n", xPortGetCoreID());
 
     // Create binary semaphore for ISR signaling
     xSemaphore = xSemaphoreCreateBinary();

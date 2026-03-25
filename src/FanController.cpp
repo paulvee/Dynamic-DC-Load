@@ -37,7 +37,7 @@ volatile int tachCount = 0;  // not used at the moment, but declared for future 
  */
 void fanController(void* pvParameters) {
     // boot message with core info
-    Serial.printf("- Fan controller task started, running on core %d\n", xPortGetCoreID());
+    Serial.printf("- Fan controller task started, running on core %d\r\n", xPortGetCoreID());
 
     int fan_pwm = 0;
     int _temp = 0;
