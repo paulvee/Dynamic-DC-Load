@@ -21,6 +21,7 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ### Fixed
 - **Boot log garbled output** — Task startup messages were split across two `Serial.print()` calls, allowing other tasks to interleave between the text and the core number. Replaced with single atomic `Serial.printf()` calls with CRLF line endings across all five task files (`main.cpp`, `RotaryEncoder.cpp`, `BatteryMode.cpp`, `FanController.cpp`, `OLEDDisplay.cpp`).
+- **System locks up when serial monitor closed** — `while (!Serial)` in `setup()` blocked indefinitely waiting for a USB host connection (Leonardo/CDC idiom that has no effect on earlier ESP32 framework versions but blocks on current ones). Removing this line allows the firmware to boot and run normally without a serial terminal connected. Reset reason is now always shown on the OLED after the splash screen (green = normal power-on, red = abnormal reset) for diagnostics without needing a serial monitor.
 
 ### Notes
 - Old `shuntVcalib` NVS key is simply orphaned — no migration needed
