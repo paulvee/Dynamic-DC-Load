@@ -20,9 +20,9 @@ The following values can be calibrated:
 | `dutVcalib` | DUT voltage display calibration | 1.0 | Adjust if voltage reading is incorrect |
 | `DAC_ADC_TOLERANCE` | Measured voltage at DAC-ADC calibration point (mV) | 400.00 | Deviation stored, but not actively used |
 | `iCalLow` | Current correction factor at low calibration point | 1.0 | Set automatically by `CAL CURRL` |
-| `iRefLow` | True (ammeter) current at the low calibration point (A) | 0.1 | Set automatically by `CAL CURRL` |
+| `iRefLow` | Reference current at the low calibration point (stored in A) | 0.1 A (100 mA) | Set automatically by `CAL CURRL` |
 | `iCalHigh` | Current correction factor at high calibration point | 1.0 | Set automatically by `CAL CURRH` |
-| `iRefHigh` | True (ammeter) current at the high calibration point (A) | 8.0 | Set automatically by `CAL CURRH` |
+| `iRefHigh` | Reference current at the high calibration point (stored in A) | 8.0 A (8000 mA) | Set automatically by `CAL CURRH` |
 | `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | **Most commonly adjusted** |
 
 ## Quick Start: Entering Calibration Mode
@@ -82,15 +82,17 @@ Stores the measured voltage at the DAC-ADC calibration point based on component 
 
 ### Calibrate Low Current Point
 ```
-CAL CURRL 0.100 0.099
+CAL CURRL 100 99
 ```
-Sets the low-current calibration point. Supply two values: the **set current** (what the encoder was set to, in A) then the **OLED reading** (what the display showed at that current). The firmware calculates the correction factor as `set / oled` and stores the set current as the low reference.
+Sets the low-current calibration point. Supply two values in **mA**: the **set current** (what the encoder was set to) then the **OLED reading** (what the display showed, converted to mA). The firmware calculates the correction factor as `set / oled` and stores the reference internally in A.
 
 ### Calibrate High Current Point
 ```
-CAL CURRH 3.000 3.022
+CAL CURRH 3000 3022
 ```
 Same as above but for the high-current point. Use the highest current your setup can comfortably deliver. The firmware applies linear interpolation between the two points for any current in between, and uses the nearest flat factor outside that range.
+
+> **Note:** Both commands accept mA values (e.g. `100 99`) or A values (e.g. `0.100 0.099`) — values > 10 are automatically treated as mA and converted.
 
 ### Save Values to Memory
 ```
@@ -141,12 +143,12 @@ Use 'CAL SAVE' to persist
 dutVcalib set to: 1.000000
 Use 'CAL SAVE' to persist
 
-> CAL CURRL 0.100 0.099
+> CAL CURRL 100 99
 iCalLow set to: 1.010101
 iRefLow set to: 0.100
 Use 'CAL SAVE' to persist
 
-> CAL CURRH 3.000 3.022
+> CAL CURRH 3000 3022
 iCalHigh set to: 0.992720
 iRefHigh set to: 3.000
 Use 'CAL SAVE' to persist
@@ -211,13 +213,13 @@ No ammeter is required. Connect your power supply to the load (sense leads on, s
 
 **1.** Boot the Dynamic Load normally (do not hold the encoder button).
 
-**2.** In CC mode, use the encoder to set the load to **100 mA (0.100 A)** and turn the load ON. Give the display a moment to settle.
+**2.** In CC mode, use the encoder to set the load to **100 mA** and turn the load ON. Give the display a moment to settle.
 
-**3.** Note the OLED current reading. For example: set = **0.100 A**, OLED shows **0.099 A**.
+**3.** Note the OLED current reading. For example: encoder set = **100 mA**, OLED shows **0.099 A** → note this as **99 mA**.
 
-**4.** Turn the encoder to increase the current to the highest value your setup allows (e.g. 3 A, 6 A, 8 A). Wait for the display to settle.
+**4.** Turn the encoder to increase the current to the highest value your setup allows (e.g. 3000 mA, 6000 mA, 8000 mA). Wait for the display to settle.
 
-**5.** Note the OLED reading again. For example: set = **3.000 A**, OLED shows **3.022 A**.
+**5.** Note the OLED reading again. For example: encoder set = **3000 mA**, OLED shows **3.022 A** → note this as **3022 mA**.
 
 > **Note:** The high point does not have to be 8 A — use whatever maximum current your setup can actually deliver.
 
@@ -227,14 +229,14 @@ No ammeter is required. Connect your power supply to the load (sense leads on, s
 
 **7.** Enter calibration mode: hold the encoder button, momentarily press the EN button on the ESP32 while keeping it pressed, and hold until you see "CALIBRATION MODE" on the display. Release the button.
 
-**8.** Type the low-point pair — set current first, then OLED reading — and press Enter:
+**8.** Type the low-point pair in mA — set current first, then OLED reading — and press Enter:
 ```
-CAL CURRL 0.100 0.099
+CAL CURRL 100 99
 ```
 
-**9.** Type the high-point pair and press Enter:
+**9.** Type the high-point pair in mA and press Enter:
 ```
-CAL CURRH 3.000 3.022
+CAL CURRH 3000 3022
 ```
 
 **10.** Save:
