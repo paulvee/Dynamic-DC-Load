@@ -37,17 +37,7 @@
 - No Python installation required
 - All dependencies included (PyQt6, pyqtgraph, pandas, numpy)
 
-## 📥 Download
-
-Download **BatteryTester_v2.1.2.exe** from the [Releases page](https://github.com/paulvee/Dynamic-DC-Load/releases), then follow the Installation steps below.
-
-## 💻 System Requirements
-
-- **OS**: Windows 10 or Windows 11
-- **Hardware**: Serial/USB port for ESP32 communication
-- **Permissions**: Serial port access (typically automatic)
-
-## 🚀 Installation
+## 📥 Download & Installation
 
 1. Download `BatteryTester_v2.1.2.exe` from the [Releases page](https://github.com/paulvee/Dynamic-DC-Load/releases)
 2. Save it anywhere (Desktop, Documents, etc.)
