@@ -30,3 +30,4 @@ Thumbs.db
 convert_docs_to_pdf.py
 increment_version.py
 BattTester/CONTRIBUTING.md
+BattTester/convert_readme_to_pdf.py
