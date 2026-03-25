@@ -53,8 +53,7 @@ void getTime();
  */
 void batteryMode(void* pvParameters) {
     // boot message with core info
-    Serial.print("- Battery mode task started, running on core ");
-    Serial.println(xPortGetCoreID());
+    Serial.printf("- Battery mode task started, running on core %d\n", xPortGetCoreID());
 
     Serial.println("- Battery task suspended by itself");
     vTaskSuspend(NULL);  // Wait until resumed by mode selection

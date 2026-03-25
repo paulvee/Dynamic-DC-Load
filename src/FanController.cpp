@@ -36,9 +36,8 @@ volatile int tachCount = 0;  // not used at the moment, but declared for future 
  * @param pvParameters Unused RTOS parameter
  */
 void fanController(void* pvParameters) {
-    // send at boot time
-    Serial.print("- Fan controller task started, running on core ");
-    Serial.println(xPortGetCoreID());
+    // boot message with core info
+    Serial.printf("- Fan controller task started, running on core %d\n", xPortGetCoreID());
 
     int fan_pwm = 0;
     int _temp = 0;

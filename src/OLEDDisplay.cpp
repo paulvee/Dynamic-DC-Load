@@ -62,9 +62,8 @@ String lltoString(unsigned long ll);
  * @param pvParameters Unused RTOS parameter
  */
 void updateOledDisplay(void* pvParameters) {
-    Serial.print("- Display task started, running on core ");
     // boot message with core info
-    Serial.println(xPortGetCoreID());
+    Serial.printf("- Display task started, running on core %d\n", xPortGetCoreID());
 
     while (true) {
         // Copy global variables from main core to minimize access time

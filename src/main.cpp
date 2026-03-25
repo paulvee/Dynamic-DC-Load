@@ -471,8 +471,7 @@ void loop() {
 
 void mainLoop(void* pvParameters) {
     // Boot message with core info
-    Serial.print("- Main task started, running on core ");
-    Serial.println(xPortGetCoreID());
+    Serial.printf("- Main task started, running on core %d\n", xPortGetCoreID());
 
     // Subscribe this task to the watchdog
     esp_task_wdt_add(NULL);
