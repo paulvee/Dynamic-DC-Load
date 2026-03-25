@@ -39,15 +39,7 @@
 
 ## 📥 Download
 
-Download **BatteryTester_v2.1.2.exe** from the [Releases page](https://github.com/paulvee/Dynamic-DC-Load/releases) and run it directly.
-
-> **⚠️ Windows SmartScreen Warning** — When running the `.exe` for the first time, Windows may show **"Windows protected your PC"**. This is expected for any unsigned executable and is not malware.
-> 
-> **To run it:** click **"More info"** → **"Run anyway"**. This is a one-time confirmation per machine.
-> 
-> **If you see "This app can't run on your PC"** instead: right-click the `.exe` → **Properties** → check **Unblock** at the bottom → click **OK**, then run again.
-> 
-> The app is fully open source — source code is in the `BattTester/` folder of this repository.
+Download **BatteryTester_v2.1.2.exe** from the [Releases page](https://github.com/paulvee/Dynamic-DC-Load/releases), then follow the Installation steps below.
 
 ## 💻 System Requirements
 
@@ -57,10 +49,18 @@ Download **BatteryTester_v2.1.2.exe** from the [Releases page](https://github.co
 
 ## 🚀 Installation
 
-1. Download `BatteryTester-Windows.exe`
+1. Download `BatteryTester_v2.1.2.exe` from the [Releases page](https://github.com/paulvee/Dynamic-DC-Load/releases)
 2. Save it anywhere (Desktop, Documents, etc.)
-3. Double-click to run - no installation needed!
+3. Double-click to run — no installation needed!
 4. On first run, the app will create `config.ini` for your settings
+
+> **⚠️ Windows SmartScreen Warning** — When running the `.exe` for the first time, Windows may show **"Windows protected your PC"**. This is expected for any unsigned executable and is not malware.
+>
+> **To run it:** click **"More info"** → **"Run anyway"**. This is a one-time confirmation per machine.
+>
+> **If you see "This app can't run on your PC"** instead: right-click the `.exe` → **Properties** → check **Unblock** at the bottom → click **OK**, then run again.
+>
+> The app is fully open source — source code is in the `BattTester/` folder of this repository.
 
 ## 📝 Usage
 
