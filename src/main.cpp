@@ -163,12 +163,15 @@ MovingAverage<long, 16> avgTemperature;
 //=============================================================================
 
 void setup() {
+    esp_reset_reason_t resetReason = esp_reset_reason();  // Capture before anything else
+
     Serial.begin(SERIAL_BAUD);
-    while (!Serial);
     vTaskDelay(2000 / portTICK_PERIOD_MS);
 
     Serial.print("\n\r\n\rDynamic DC Load - Version ");
     Serial.println(FW_VERSION);
+    Serial.printf("Reset reason: %d\r\n", (int)resetReason);
+    // 1=power-on, 2=external(EN pin), 3=SW reset, 4=panic, 5=INT WDT, 6=task WDT, 9=brownout
 
     // Initialize calibration manager and load values from Preferences
     if (!CalibrationManager::begin()) {
@@ -193,6 +196,19 @@ void setup() {
 
     // Show splash screen (but we already know if cal mode is needed)
     oled_prep();
+
+    // If reset was not a normal power-on, show reason on OLED for 3 seconds
+    // 2=external(EN pin/DTR), 3=SW, 4=panic, 5=INT WDT, 6=task WDT, 9=brownout
+    if (resetReason != ESP_RST_POWERON) {
+        tft.setFont();
+        tft.setTextColor(RED);
+        tft.setCursor(5, 45);
+        tft.print("Reset reason:");
+        tft.setCursor(5, 60);
+        tft.print((int)resetReason);
+        delay(3000);
+        tft.fillScreen(BLACK);
+    }
 
     if (calibrationMode) {  // Button was pressed during boot
 
