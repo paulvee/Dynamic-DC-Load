@@ -163,15 +163,12 @@ MovingAverage<long, 16> avgTemperature;
 //=============================================================================
 
 void setup() {
-    esp_reset_reason_t resetReason = esp_reset_reason();  // Capture before anything else
-
+    Serial.setTxBufferSize(0);  // Disable TX ring buffer: use direct FIFO writes (non-blocking, drops bytes when full)
     Serial.begin(SERIAL_BAUD);
     vTaskDelay(2000 / portTICK_PERIOD_MS);
 
     Serial.print("\n\r\n\rDynamic DC Load - Version ");
     Serial.println(FW_VERSION);
-    Serial.printf("Reset reason: %d\r\n", (int)resetReason);
-    // 1=power-on, 2=external(EN pin), 3=SW reset, 4=panic, 5=INT WDT, 6=task WDT, 9=brownout
 
     // Initialize calibration manager and load values from Preferences
     if (!CalibrationManager::begin()) {
@@ -197,24 +194,13 @@ void setup() {
     // Show splash screen (but we already know if cal mode is needed)
     oled_prep();
 
-    // Always show reset reason on OLED after splash
-    // 1=power-on, 2=external(EN/DTR), 3=SW, 4=panic, 5=INT WDT, 6=task WDT, 9=brownout
-    tft.setFont();
-    tft.setTextColor(resetReason == ESP_RST_POWERON ? GREEN : RED);
-    tft.setCursor(5, 45);
-    tft.print("Reset reason:");
-    tft.setCursor(5, 60);
-    tft.print((int)resetReason);
-    delay(2000);
-    tft.fillScreen(BLACK);
-
     if (calibrationMode) {  // Button was pressed during boot
 
         // Turn off the fan during calibration mode
         ledcWrite(FAN_PWM_CHANNEL, 0);
         Serial.println("- Fan stopped for calibration mode");
 
-        // Display initial calibration mode screen (simple)
+        // Display initial calibration mode screen: waiting for terminal
         tft.fillScreen(BLACK);
         tft.setFont();  // Use default small font
         tft.setTextColor(YELLOW);
@@ -224,20 +210,41 @@ void setup() {
         tft.print("MODE");
         tft.setTextColor(WHITE);
         tft.setCursor(10, 50);
-        tft.print("Connect serial");
-        tft.setCursor(10, 65);
-        tft.print("Type CAL on");
-        tft.setCursor(10, 75);
-        tft.print("serial monitor");
+        tft.print("Open terminal");
+        tft.setCursor(10, 60);
+        tft.print("Type CAL");
+        tft.setCursor(10, 70);
+        tft.print("+ Enter to start");
         tft.setTextColor(GREEN);
         tft.setCursor(10, 90);
         tft.print("or click to");
         tft.setCursor(10, 100);
         tft.print("cancel");
 
-        CalibrationManager::printCalibration();
-        Serial.println("\nEnter calibration commands:");
-        Serial.println("Type 'CAL SHOW' for help");
+        // Wait for terminal to connect before printing any output.
+        // Without this, the TX FIFO fills immediately (no terminal to drain it),
+        // and all queued messages flood the screen the moment the terminal opens.
+        // The user must press Enter to confirm the terminal is live.
+        bool terminalReady = false;
+        {
+            unsigned long waitStart = millis();
+            while (millis() - waitStart < 60000) {  // 60 s timeout
+                if (Serial.available()) {
+                    terminalReady = true;
+                    break;
+                }
+                esp_task_wdt_reset();
+                delay(100);
+                if (digitalRead(ENC_BUT) == HIGH) break;  // button released = cancel
+            }
+        }
+        if (terminalReady) {
+            delay(100);                                // let any extra bytes arrive
+            while (Serial.available()) Serial.read();  // flush Enter + artifacts
+            CalibrationManager::printCalibration();
+            Serial.println("\nEnter calibration commands:");
+            Serial.println("Type 'CAL SHOW' for help");
+        }
 
         // Wait for button release
         while (digitalRead(ENC_BUT) == LOW) {
@@ -331,27 +338,56 @@ void setup() {
             delay(10);
         }
 
-        // Only show exit screen and halt if exited via CAL EXIT command
+        // Only show exit screen and halt if exited via CAL EXIT command.
+        // We do NOT call ESP.restart() here immediately because the terminal
+        // (PuTTY) is still connected. Restarting while connected causes the
+        // host to re-assert DTR on close, which holds EN low and locks the ESP32.
+        // Instead: instruct the user to close PuTTY FIRST, then either pull the
+        // USB cable (clean power-cycle) or press the rotary button (which calls
+        // ESP.restart() after the terminal is already closed).
         if (exitViaCommand) {
-            Serial.println("\nCalibration mode exited. Power cycle to restart.");
+            Serial.println("\nCalibration Done!");
+            Serial.println("Disconnect the USB cable first");
+            Serial.println("before you close the serial monitor.");
+            Serial.flush();
             tft.fillScreen(BLACK);
-            tft.setFont();  // Use default small font
+            tft.setFont();       // Use default small font
+            tft.setTextSize(1);  // All text at size 1 (6px wide x 8px tall per char)
+            // Line 1: title in green
             tft.setTextColor(GREEN);
-            tft.setCursor(20, 50);
-            tft.print("Calibration");
-            tft.setCursor(20, 60);
-            tft.print("Complete!");
+            tft.setCursor(13, 2);
+            tft.print("Calibration Done!");
+            // Empty line (y+15)
+            // Lines 3-4: disconnect warning in red
+            tft.setTextColor(RED);
+            tft.setCursor(1, 17);  // "Disconnect USB cable!" = 21 x 6 = 126px, x=1
+            tft.print("Disconnect USB cable!");
+            // Empty line (y+15)
+            // Lines 6-8: explanation in white
             tft.setTextColor(WHITE);
-            tft.setCursor(10, 80);
-            tft.print("Power cycle to");
-            tft.setCursor(10, 90);
-            tft.print("restart Dynamic");
-            tft.setCursor(10, 100);
-            tft.print("Load");
+            tft.setCursor(4, 42);
+            tft.print("Before you terminate");
+            tft.setCursor(7, 52);
+            tft.print("the serial monitor,");
+            tft.setCursor(1, 62);
+            tft.print("it will hang the CPU.");
+            // Empty line (y+15)
+            // Lines 10-11: action in white
+            tft.setCursor(13, 77);
+            tft.print("Then press rotary");
+            tft.setCursor(7, 87);
+            tft.print("to end calibration.");
 
-            // Infinite loop - user must power cycle
             while (true) {
-                delay(1000);
+                // Rotary button press → clean restart (close PuTTY before pressing)
+                if (digitalRead(ENC_BUT) == LOW) {
+                    delay(50);  // Debounce
+                    if (digitalRead(ENC_BUT) == LOW) {
+                        ESP.restart();
+                    }
+                }
+                esp_task_wdt_reset();
+                delay(100);
             }
         }
         // If exited via button, just continue with normal boot

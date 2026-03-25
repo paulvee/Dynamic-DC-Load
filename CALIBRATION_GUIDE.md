@@ -35,9 +35,19 @@ The following values can be calibrated:
 4. **Keep holding** until you see "CALIBRATION MODE" on the display
 5. **Release** the rotary encoder button
 
-> **⚠️ Do NOT use the VSCode/PlatformIO serial monitor or the Arduino IDE serial monitor for calibration.**
-> Both toggle the RTS line when sending data, which pulses the ESP32 EN pin and causes an immediate reset the moment you type a command.
-> Use **PuTTY** or **Tera Term** instead, with flow control set to **None** — this keeps RTS/DTR completely inactive.
+> **⚠️ Serial monitor compatibility — read before connecting:**
+>
+> | Terminal | Works? | Notes |
+> |---|---|---|
+> | **PuTTY** | ✅ Yes | Recommended. Set flow control to **XON/XOFF** or **None**. Works out of the box. |
+> | **Arduino IDE** (v2.x) | ✅ Yes | Tested with v2.3.7 and v2.3.8. Works out of the box. Note: behaviour may change with future IDE updates. |
+> | **Tera Term 5** | ⚠️ Config needed | Works reliably once configured. Before opening the port: **Setup → Serial Port → uncheck DTR and RTS**. Without this, DTR asserted on connect causes a reset/reconnect flood. |
+> | **VSCode built-in serial monitor** | ❌ No | Asserts DTR/RTS on data send. ESP32 resets the moment you type a command. |
+> | **PlatformIO `pio device monitor`** | ❌ No | Same RTS toggle issue as VSCode monitor, even with `monitor_dtr=0` / `monitor_rts=0` in `platformio.ini`. |
+>
+> **Recommended:** Use **PuTTY** (reliable, always works out of the box) or **Arduino IDE 2.x**.
+>
+> ⚠️ **Note:** Serial monitor DTR/RTS handling is controlled entirely by the host application, not the firmware. Any update to PuTTY, Arduino IDE, Tera Term, or VSCode could change this behaviour. If calibration mode stops working after a software update, DTR/RTS handling in that terminal is the first thing to check.
 
 **Important Timing:** Start pressing the rotary encoder button before you reset the ESP32 or start pressing when the screen blanks out from the previous session, and keep it pressed continuously through power-on until the calibration screen appears.
 
@@ -110,9 +120,23 @@ Resets all values to defaults from Config.h. Use `CAL SAVE` afterwards to persis
 ```
 CAL EXIT
 ```
-Exits calibration mode. Power cycle to return to normal operation.
+Exits calibration mode. The OLED and serial monitor will display instructions to safely terminate the session.
 
 **Or** press the encoder button at any time to exit.
+
+> **⚠️ Important — correct exit sequence:**
+> 1. Type `CAL EXIT` and press Enter
+> 2. Read the OLED and serial monitor message
+> 3. **Disconnect the USB cable first**
+> 4. Close the serial monitor
+> 5. Reconnect the USB cable — the ESP32 boots normally into measurement mode
+> 6. Alternatively, after disconnecting the USB cable, press the rotary encoder button to restart
+>
+> **If you already closed the serial monitor without disconnecting first:** The ESP32 will be unresponsive — the OLED freezes on its last screen, the EN button has no effect. To recover:
+> 1. Pull the USB cable
+> 2. Power cycle the board (disconnect and reconnect the DC power supply)
+> 3. Reconnect the USB cable — the ESP32 boots normally
+> Opening the serial monitor or PuTTY after reconnecting is safe; the 10µF capacitor on the EN line prevents a reset-on-connect. This is **C44** on the PCB — it must always be installed.
 
 ## Command Line Features
 
@@ -291,17 +315,41 @@ If values show as defaults, calibration was not saved - repeat `CAL SAVE`.
 - Commands are case-insensitive; try `cal show` or `CAL SHOW`
 - Press Enter after the command (not just Ctrl+Enter)
 
+### ESP32 Stuck in Reset After Closing Serial Monitor
+
+**Symptoms:** OLED freezes on its last screen, ESP32 is completely unresponsive — the EN button has no effect
+
+**Cause:** The serial monitor was closed while the USB cable was still connected. This de-asserts DTR on the host side, which pulls the ESP32 EN pin low through the auto-reset circuit and holds the processor in a perpetual reset state. Because EN is held low by the USB-serial bridge, the EN button cannot override it — only removing USB power breaks the hold.
+
+**Recovery:**
+1. Pull the USB cable
+2. Power cycle the board (disconnect and reconnect the DC power supply)
+3. Reconnect the USB cable — the ESP32 boots normally
+
+Opening a serial monitor or PuTTY after reconnecting is safe; the 10µF capacitor on the EN line absorbs the DTR pulse on connect and prevents a reset. This is **C44** on the PCB — it must always be installed.
+
+**Prevention:** Always disconnect the USB cable *before* closing the serial monitor. The OLED and serial monitor both display this reminder after `CAL EXIT`.
+
+---
+
 ### ESP32 Resets When Typing Commands
 
 **Symptoms:** ESP32 reboots (OLED goes dark, serial disconnects) the moment you send a command; works fine when idle
 
-**Cause:** PlatformIO Core 6.x serial monitor toggles the RTS line during data transmission. On ESP32 DevKit boards the RTS signal is wired through an RC circuit to the EN pin for auto-programming. Even with `monitor_dtr = 0` and `monitor_rts = 0` set in `platformio.ini`, this toggle still occurs during active data flow and resets the ESP32.
+**Cause:** This is a well-known, long-standing issue with the Arduino/ESP32 auto-reset circuit. The USB-to-serial bridge (CP2102/CH340) wires DTR and RTS to the ESP32 EN pin via an RC circuit, intended for automatic programming resets. Some serial monitors toggle these lines during data transmission, which pulses EN and resets the CPU. This cannot be fixed in firmware — the processor is in reset before it can react.
 
-**Solution:** Use **PuTTY** or **Tera Term** instead of the PlatformIO serial monitor for calibration:
-- Baud: 9600 | Data bits: 8 | Stop bits: 1 | Parity: None
-- **Flow control: None** — this is the critical setting that keeps RTS/DTR inactive
+**Affected monitors (do not use for calibration):**
+- **VSCode built-in serial monitor** — resets ESP32 on the first keystroke
+- **PlatformIO `pio device monitor`** — same issue, even with `monitor_dtr=0` / `monitor_rts=0` in `platformio.ini`
 
-The PlatformIO serial monitor works normally for all other (non-interactive) firmware operation.
+**Working monitors (out of the box):**
+- **PuTTY** ✅ — Baud: 9600 | Data: 8 | Stop: 1 | Parity: None | Flow control: **XON/XOFF** or **None**
+- **Arduino IDE 2.x** ✅ — Tested with v2.3.7 and v2.3.8. Note: behaviour could change with future IDE updates.
+
+**Works with manual configuration:**
+- **Tera Term 5** ⚠️ — Asserts DTR on connect by default, causing a reset/reconnect flood. Fix before opening the port: **Setup → Serial Port → uncheck DTR and RTS**. Once configured, works reliably. Note: initial garbage characters after a failed attempt are TX FIFO leftovers — they clear on the next clean connect.
+
+The PlatformIO `pio device monitor` works normally for all non-interactive (read-only) firmware use.
 
 **Symptoms:** "ERROR: Unknown command" messages
 

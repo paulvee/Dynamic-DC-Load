@@ -36,7 +36,7 @@ This firmware implements a precision DC electronic load with multiple operating 
 - **Real-Time Protocol**: serial communication with companion Python app
 - **Safety Systems**: multiple protection layers (OVP, OCP, OPP, OTP)
 - **Temperature Management**: dual PWM-controlled cooling fans
-- **Precision Measurement**: 16-bit ADC/DAC — two-point current calibration for accuracy across full range
+- **Precision Measurement**: 16-bit ADC/DAC — two-point current calibration for accuracy across full current range
 
 ## Quick Start
 

@@ -4,6 +4,19 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.7] - 2026-03-25
+
+### Changed
+- **CALIBRATION_GUIDE.md** — Major documentation update:
+  - Added serial terminal compatibility table (PuTTY ✅, Arduino IDE 2.x ✅, Tera Term 5 ⚠️ config needed, VSCode ❌, PlatformIO monitor ❌) with per-terminal notes and configuration instructions
+  - Added note that DTR/RTS behaviour is controlled by the host application and may change with future software updates
+  - Expanded `CAL EXIT` section with numbered exit sequence and inline recovery box for the "closed serial monitor before pulling cable" scenario
+  - Added new troubleshooting entry: **ESP32 Stuck in Reset After Closing Serial Monitor** — corrected symptom description (OLED freezes on last screen, EN button ineffective), explains why the EN button cannot override a bridge-asserted EN hold, updated recovery to: pull USB cable + power cycle the board + reconnect USB
+  - Added **C44** PCB cross-reference at all capacitor mentions: the 10 µF capacitor on the EN line (C44) must always be installed; it absorbs the DTR pulse on port-open and prevents reset-on-connect
+  - Corrected and expanded the **ESP32 Resets When Typing Commands** troubleshooting entry with full affected/working/config-needed terminal lists
+
+---
+
 ## [7.1.6] - 2026-03-24
 
 ### Added
@@ -21,7 +34,32 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ### Fixed
 - **Boot log garbled output** — Task startup messages were split across two `Serial.print()` calls, allowing other tasks to interleave between the text and the core number. Replaced with single atomic `Serial.printf()` calls with CRLF line endings across all five task files (`main.cpp`, `RotaryEncoder.cpp`, `BatteryMode.cpp`, `FanController.cpp`, `OLEDDisplay.cpp`).
-- **System locks up when serial monitor closed** — `while (!Serial)` in `setup()` blocked indefinitely waiting for a USB host connection. This was always a no-op on older ESP32 Arduino core versions, but espressif32 platform 6.13.0 (released Feb 26 2026) changed `HardwareSerial::operator bool()` to check DTR state, making it actually block when no terminal is connected. Removing this line fixes the issue on all platform versions. Reset reason is now always shown on the OLED after the splash screen (green = normal power-on, red = abnormal reset) for diagnostics without needing a serial monitor.
+- **System locks up when serial monitor closed** — Two root causes fixed:
+  1. `while (!Serial)` in `setup()` blocked indefinitely waiting for a USB host connection. This was always a no-op on older ESP32 Arduino core versions, but espressif32 platform 6.13.0 (released Feb 26 2026) changed `HardwareSerial::operator bool()` to check DTR state, making it actually block when no terminal is connected. Removing this line fixes the issue on all platform versions.
+  2. `Serial.setTxBufferSize(0)` called before `Serial.begin()`. Disables the TX ring buffer so all Serial writes use direct FIFO — bytes are silently dropped when no terminal is connected rather than blocking the calling task.
+- **Calibration mode message flood on terminal connect** — When `while (!Serial)` was removed, the boot path no longer waited for a terminal before printing calibration startup messages. The TX FIFO filled immediately, and all buffered bytes flooded the terminal screen the moment a connection was opened. Fixed by adding an explicit `Serial.available()` wait loop inside the calibration mode block — the firmware waits up to 60 seconds for the user to type `CAL` + Enter before printing anything. This completely separates the terminal-connect event from the calibration output.
+
+### Known Limitations — USB Serial RTS/DTR Reset Behaviour
+This is a well-known, long-standing issue in the Arduino/ESP32 ecosystem and is not specific to this firmware.
+
+**Root cause:** The USB-to-serial bridge chip (typically CP2102 or CH340) on most ESP32 development boards wires DTR and RTS to the automatic reset circuit. This was designed to allow programming tools to reset the chip before flashing. The two signals are intentionally swapped to create a short reset pulse on DTR toggle — a deliberate (but now archaic) design choice made early in the Arduino ecosystem that has never been corrected.
+
+**Consequence:** Any application that asserts or toggles DTR/RTS when opening or closing the serial port will trigger the EN (reset) line on the ESP32. Three common triggers:
+- **Opening the port** — most terminals and monitors assert DTR on connect, which resets the ESP32.
+- **Closing the port** — when a terminal closes, it de-asserts DTR, which can hold EN low (perpetual reset state) depending on the RC time constant of the capacitor on the EN line.
+- **Sending a break condition** — some IDEs and monitors do this on disconnect.
+
+**What we fixed (hardware):** Replacing the EN capacitor with a 10 µF value (from the default ~100 nF) significantly increases the RC time constant of the auto-reset circuit. This makes the reset pulse from opening the port too short to latch, eliminating unwanted resets on port open. The PlatformIO `monitor_dtr = 0` / `monitor_rts = 0` settings in `platformio.ini` also suppress DTR/RTS assertion in the PlatformIO serial monitor specifically.
+
+**What cannot be fully fixed in firmware:** The ESP32 processor has no control over what happens to its EN pin from the host side. Once EN is pulled low by the host's USB-serial driver, the CPU is already in reset and cannot run any code to recover. This means the close-port reset can only be avoided by breaking the USB connection *before* the terminal is closed.
+
+**Affected tools:** PuTTY, Arduino IDE serial monitor, PlatformIO serial monitor (despite `monitor_dtr=0`). Flow control settings in PuTTY do not help — DTR toggling on connect/disconnect is independent of flow control.
+
+**Not affected:** The Battery Tester desktop application manages the serial port correctly and does not trigger this issue.
+
+**Required workaround for calibration sessions:** After typing `CAL EXIT`, the OLED and serial monitor both display:
+> *"Disconnect the USB cable first, before you close the serial monitor."*
+The user must physically disconnect the USB cable before closing PuTTY (or any other terminal). After reconnecting, the ESP32 boots normally. Alternatively, pressing the rotary encoder button after disconnecting will also trigger a clean `ESP.restart()`.
 
 ### Notes
 - Old `shuntVcalib` NVS key is simply orphaned — no migration needed

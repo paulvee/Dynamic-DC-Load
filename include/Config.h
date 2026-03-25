@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.1.6";
+const String FW_VERSION = "7.1.7";
 
 //=============================================================================
 // PIN DEFINITIONS
