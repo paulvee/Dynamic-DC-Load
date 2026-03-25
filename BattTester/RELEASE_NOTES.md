@@ -1,6 +1,21 @@
-# Battery Tester v2.1.0 - Windows Release
+# Battery Tester v2.1.2 - Windows Release
 
-## 🎉 What's New in v2.1.0
+## 🎉 What's New in v2.1.2
+
+### Bug Fixes
+- **Communication Timeout Handling** - The app now automatically stops the test if the Dynamic Load reports a communication timeout (`Comm Timeout` or `PC Disconnected`). A warning dialog is shown so you know exactly why the test was terminated, rather than leaving the app hanging in an ambiguous state.
+
+---
+
+## What's New in v2.1.1
+
+### Bug Fixes
+- **Auto-ranging Axis Jump Fixed** - Toggling the voltage auto-range checkbox no longer causes a jarring axis jump. The initial range calculation now uses the same algorithm as live updates, and the axis only redraws when the range actually changes (prevents flicker). Minimum displayed span is 0.5 V to avoid over-zooming on stable voltages.
+- **Gridline Alignment** - Auto-range mode now snaps the Y-axis to clean intervals (0.1 V, 0.2 V, 0.5 V, 1.0 V, 2.0 V, 5.0 V) so gridlines align neatly with the axis edges.
+
+---
+
+## What's New in v2.1.0
 
 ### New Features
 - **Stop Button** - Gracefully stop discharge and monitor recovery voltage without canceling the test
@@ -24,7 +39,7 @@
 
 ## 📥 Download
 
-Download **BatteryTester-Windows.exe** and run it directly.
+Download **BatteryTester_v2.1.2.exe** and run it directly.
 
 ## 💻 System Requirements
 
@@ -56,9 +71,8 @@ For detailed instructions, see the [README](README.md).
 
 ## 🔗 Links
 
-- [Source Code](https://github.com/paulvee/Battery-tester-Python)
-- [ESP32 Firmware](https://github.com/paulvee/DL-Firmware-for-VSC)
-- [Hardware Project](https://github.com/paulvee/Dynamic-DC-Load)
+- [Source Code & Firmware](https://github.com/paulvee/Dynamic-DC-Load)
+- [Releases](https://github.com/paulvee/Dynamic-DC-Load/releases)
 
 ## 🛠️ Building from Source
 
