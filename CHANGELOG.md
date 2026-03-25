@@ -19,6 +19,9 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 - `shuntVcalib` NVS key retired; new keys are `iCalLow`, `iRefLow`, `iCalHigh`, `iRefHigh` (default 1.0/0.1A/1.0/8.0A — safe on first boot)
 - Updated `CALIBRATION_GUIDE.md` with new two-point procedure and command reference
 
+### Fixed
+- **Boot log garbled output** — Task startup messages were split across two `Serial.print()` calls, allowing other tasks to interleave between the text and the core number. Replaced with single atomic `Serial.printf()` calls with CRLF line endings across all five task files (`main.cpp`, `RotaryEncoder.cpp`, `BatteryMode.cpp`, `FanController.cpp`, `OLEDDisplay.cpp`).
+
 ### Notes
 - Old `shuntVcalib` NVS key is simply orphaned — no migration needed
 - Calibration procedure requires no external ammeter; collect set vs OLED readings during normal operation, then enter values in cal mode

@@ -7,6 +7,7 @@ This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load 
 - New commands: `CAL CURRL <set_mA> <oled_mA>` and `CAL CURRH <set_mA> <oled_mA>`
 - No external ammeter needed — calibrate by comparing set-point to OLED display
 - Readings are collected in normal operating mode, then entered in calibration mode
+- **Boot log fix** — Startup messages now print cleanly on separate lines (was garbled due to FreeRTOS task interleaving)
 
 ## What's New in v7.1.2  
 - Battery Tester Protocol — Optimized serial communication for Battery Tester v2.1.2+
