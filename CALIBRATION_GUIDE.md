@@ -4,6 +4,10 @@
 
 As of v7.0.4, the Dynamic Load firmware supports **runtime calibration** via serial commands. Calibration values are stored in the ESP32's non-volatile memory and persist across reboots and firmware updates.
 
+You need to first calibrate the hardware by trimmers. After that you can obtain the required values to calibrate the software and input them during the Calibration mode. See this blog post for detailed descriptions:
+https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
+
+
 **Key Benefits:**
 - ✅ No recompilation needed to change calibration
 - ✅ No filesystem uploads required
@@ -23,7 +27,7 @@ The following values can be calibrated:
 | `iRefLow` | Reference current at the low calibration point (stored in A) | 0.1 A (100 mA) | Set automatically by `CAL CURRL` |
 | `iCalHigh` | Current correction factor at high calibration point | 1.0 | Set automatically by `CAL CURRH` |
 | `iRefHigh` | Reference current at the high calibration point (stored in A) | 8.0 A (8000 mA) | Set automatically by `CAL CURRH` |
-| `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | **Most commonly adjusted** |
+| `cvCalFactor` | CV mode trigger voltage calibration | 1.0 | Set actual Trigger-point voltage |
 
 ## Quick Start: Entering Calibration Mode
 
@@ -136,7 +140,7 @@ Exits calibration mode. The OLED and serial monitor will display instructions to
 > 1. Pull the USB cable
 > 2. Power cycle the board (disconnect and reconnect the DC power supply)
 > 3. Reconnect the USB cable — the ESP32 boots normally
-> Opening the serial monitor or PuTTY after reconnecting is safe; the 10µF capacitor on the EN line prevents a reset-on-connect. This is **C44** on the PCB — it must always be installed.
+> Opening the serial monitor or PuTTY after reconnecting is safe; the 22µF capacitor on the EN line prevents a reset-on-connect. This is **C44** on the PCB — it must always be installed.
 
 ## Command Line Features
 
@@ -190,13 +194,13 @@ Exiting calibration mode - power cycle to restart
 
 **Problem:** CV mode triggers at wrong voltage (e.g., set 50V but triggers at 53V)
 
-**Note:** For an extended and detailed description of CV mode calibration, see the blog post:
+**Note:** For an extended and detailed description of how to obtain the calibration factors for the CV mode calibration entries, see the blog post:
 https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
 
 **Procedure:**
 1. Apply a known voltage from a calibrated power supply (e.g., 50.00V)
 2. Set Dynamic Load to CV mode at that voltage (50.0V)
-3. Note the actual trigger voltage shown on the supply (e.g., 53.03V)
+3. Note the actual trigger-point voltage shown on the supply (e.g., 53.03V)
 4. Calculate calibration factor:
    ```
    cvCalFactor = measured_voltage / target_voltage
@@ -326,7 +330,7 @@ If values show as defaults, calibration was not saved - repeat `CAL SAVE`.
 2. Power cycle the board (disconnect and reconnect the DC power supply)
 3. Reconnect the USB cable — the ESP32 boots normally
 
-Opening a serial monitor or PuTTY after reconnecting is safe; the 10µF capacitor on the EN line absorbs the DTR pulse on connect and prevents a reset. This is **C44** on the PCB — it must always be installed.
+Opening a serial monitor or PuTTY after reconnecting is safe; the 22µF capacitor on the EN line absorbs the DTR pulse on connect and prevents a reset. This is **C44** on the PCB — it must always be installed.
 
 **Prevention:** Always disconnect the USB cable *before* closing the serial monitor. The OLED and serial monitor both display this reminder after `CAL EXIT`.
 
@@ -343,7 +347,7 @@ Opening a serial monitor or PuTTY after reconnecting is safe; the 10µF capacito
 - **PlatformIO `pio device monitor`** — same issue, even with `monitor_dtr=0` / `monitor_rts=0` in `platformio.ini`
 
 **Working monitors (out of the box):**
-- **PuTTY** ✅ — Baud: 9600 | Data: 8 | Stop: 1 | Parity: None | Flow control: **XON/XOFF** or **None**
+- **PuTTY** ✅ — Tested with version 8.0.1 and 8.0.3. Set to Baud: 9600 | Data: 8 | Stop: 1 | Parity: None | Flow control: **XON/XOFF** (default) or **None**
 - **Arduino IDE 2.x** ✅ — Tested with v2.3.7 and v2.3.8. Note: behaviour could change with future IDE updates.
 
 **Works with manual configuration:**
@@ -358,6 +362,18 @@ The PlatformIO `pio device monitor` works normally for all non-interactive (read
 - Ensure space between CAL and parameter/value
 - Use Backspace or Ctrl-C to fix typos
 - Valid format: `CAL <command>` or `CAL <param> <value>`
+
+### Screen Fills With Garbage Characters on Connect
+
+**Symptoms:** When opening PuTTY (or another terminal), the screen immediately fills with random characters before you can type anything
+
+**Cause:** The ESP32 TX FIFO contains leftover bytes from a previous session or reset loop. When the terminal opens the COM port, the bridge flushes all buffered bytes to the host at once, flooding the screen.
+
+**Solution:** Simply type `cal` and press Enter. The firmware discards all buffered input, recognises the `CAL` command, and enters calibration mode normally. The garbage characters are harmless and don't need to be cleared first.
+
+> **Note:** This is the same leftover-FIFO behaviour described in the Tera Term entry above. It can occur with any terminal after an unclean disconnect or reset loop.
+
+---
 
 ### Serial Monitor Issues
 
