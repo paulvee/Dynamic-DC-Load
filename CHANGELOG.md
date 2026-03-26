@@ -12,7 +12,7 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
   - Added note that DTR/RTS behaviour is controlled by the host application and may change with future software updates
   - Expanded `CAL EXIT` section with numbered exit sequence and inline recovery box for the "closed serial monitor before pulling cable" scenario
   - Added new troubleshooting entry: **ESP32 Stuck in Reset After Closing Serial Monitor** — corrected symptom description (OLED freezes on last screen, EN button ineffective), explains why the EN button cannot override a bridge-asserted EN hold, updated recovery to: pull USB cable + power cycle the board + reconnect USB
-  - Added **C44** PCB cross-reference at all capacitor mentions: the 10 µF capacitor on the EN line (C44) must always be installed; it absorbs the DTR pulse on port-open and prevents reset-on-connect
+  - Added **C44** PCB cross-reference at all capacitor mentions: the 22 µF capacitor on the EN line (C44) must always be installed; it absorbs the DTR pulse on port-open and prevents reset-on-connect
   - Corrected and expanded the **ESP32 Resets When Typing Commands** troubleshooting entry with full affected/working/config-needed terminal lists
 
 ---
@@ -49,7 +49,7 @@ This is a well-known, long-standing issue in the Arduino/ESP32 ecosystem and is 
 - **Closing the port** — when a terminal closes, it de-asserts DTR, which can hold EN low (perpetual reset state) depending on the RC time constant of the capacitor on the EN line.
 - **Sending a break condition** — some IDEs and monitors do this on disconnect.
 
-**What we fixed (hardware):** Replacing the EN capacitor with a 10 µF value (from the default ~100 nF) significantly increases the RC time constant of the auto-reset circuit. This makes the reset pulse from opening the port too short to latch, eliminating unwanted resets on port open. The PlatformIO `monitor_dtr = 0` / `monitor_rts = 0` settings in `platformio.ini` also suppress DTR/RTS assertion in the PlatformIO serial monitor specifically.
+**What we fixed (hardware):** Adding C44, the EN capacitor with a 22 µF value, on the DL PCB. (on the ESP board itself, there is most likely already a 100 nF) We do this to significantly increase the RC time constant of the auto-reset circuit. Populating C44 makes the reset pulse from opening the port too short to latch, eliminating unwanted resets on port open. The PlatformIO `monitor_dtr = 0` / `monitor_rts = 0` settings in `platformio.ini` also suppress DTR/RTS assertion in the PlatformIO serial monitor specifically.
 
 **What cannot be fully fixed in firmware:** The ESP32 processor has no control over what happens to its EN pin from the host side. Once EN is pulled low by the host's USB-serial driver, the CPU is already in reset and cannot run any code to recover. This means the close-port reset can only be avoided by breaking the USB connection *before* the terminal is closed.
 
