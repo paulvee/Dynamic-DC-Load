@@ -1,6 +1,6 @@
 # Dynamic DC Load Firmware
 
-**ESP32 Dynamic DC Load Firmware — v7.1.6**  
+**ESP32 Dynamic DC Load Firmware — v7.1.7**  
 Platform: ESP32 DevKit1 | Build system: PlatformIO  
 Author: Paul Versteeg
 
