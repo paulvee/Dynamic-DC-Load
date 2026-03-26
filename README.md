@@ -64,7 +64,7 @@ pio device monitor --baud 115200
 | Input | Rotary encoder with dual-function push button |
 | Cooling | Two PWM-controlled fans with tachometer feedback |
 | Sensor | LM35 temperature sensor on heatsink |
-| Power Stage | N-FET based current sink with relay control |
+| Power Stage | Dual N-FET based current sink with relay control |
 
 ## Specifications
 
