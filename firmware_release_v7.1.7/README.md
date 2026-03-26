@@ -4,7 +4,7 @@ This package contains pre-compiled firmware binaries for the ESP32 Dynamic Load 
 
 ## What's New in v7.1.7
 - **Calibration guide update** — Terminal compatibility table, expanded exit procedure, corrected troubleshooting entries
-- **C44 note** — The 10 µF capacitor on the EN line (C44 on the PCB) must always be installed; it prevents reset-on-connect
+- **C44 note** — The 22 µF capacitor on the EN line (C44 on the PCB) must always be installed; it prevents reset-on-connect
 
 ## What's New in v7.1.6
 - **Two-point current calibration** — Compensates for DAC non-linearity across the full current range

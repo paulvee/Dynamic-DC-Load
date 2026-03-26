@@ -62,7 +62,7 @@ IMPORTANT: Always follow this sequence to avoid locking up the ESP32.
 If you closed the serial monitor before pulling the cable:
   OLED freezes, EN button does not respond.
   Recovery: pull USB cable + power cycle the board + reconnect USB.
-  The 10 uF capacitor on the EN line (C44 on the PCB) must be installed —
+  The 22 uF capacitor on the EN line (C44 on the PCB) must be installed —
   it prevents reset-on-connect when you reconnect the serial monitor.
 
 
