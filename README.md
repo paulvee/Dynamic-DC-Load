@@ -1,6 +1,6 @@
 # Dynamic DC Load Firmware
 
-**ESP32 Dynamic DC Load Firmware — v7.1.7**  
+**ESP32 Dynamic DC Load Firmware — v7.1.8**  
 Platform: ESP32 DevKit1 | Build system: PlatformIO  
 Author: Paul Versteeg
 
@@ -93,6 +93,8 @@ pio device monitor --baud 115200
 
 Runtime calibration via serial commands — no recompilation needed. See [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md).
 
+V7.1.8 introduces **two-point DUT voltage calibration** (`CAL VH <actual_V> <oled_V>`) — below `vRefLow` (2.5V) the hardware trimmer controls accuracy; above it the firmware linearly interpolates a correction factor up to `vRefHigh` (60V).
+
 V7.1.6 introduces **two-point current calibration** (`CAL CURRL` at low current, `CAL CURRH` at high current), replacing the old single-point shunt calibration. This significantly improves current accuracy across the full operating range.
 
 > ⚠️ Use **PuTTY** or **Tera Term** (not the PlatformIO or Arduino IDE serial monitor) when entering calibration commands. See the guide for details.
@@ -135,7 +137,7 @@ Dynamic_Load_FW/
 │   └── Debug.cpp              # Debug output utilities
 │
 ├── data/                      # Calibration data (DL_Cal_Values.ini)
-├── firmware_release_v7.1.6/   # Pre-built binary release
+├── firmware_release_v7.1.8/   # Pre-built binary release
 ├── BattTester/                # Battery Tester Python app source
 ├── lib/                       # Custom libraries
 ├── platformio.ini             # PlatformIO project configuration
