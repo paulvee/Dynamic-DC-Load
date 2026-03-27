@@ -21,7 +21,9 @@ The following values can be calibrated:
 
 | Parameter | Description | Default | Notes |
 |-----------|-------------|---------|-------|
-| `dutVcalib` | DUT voltage display calibration | 1.0 | Adjust if voltage reading is incorrect |
+| `vCalHigh` | DUT voltage correction factor at high reference point | 1.0 | Set automatically by `CAL VH` |
+| `vRefLow` | Low anchor voltage — below this no software correction is applied (V) | 2.5 | Hardware trimmer handles low-voltage accuracy |
+| `vRefHigh` | High reference voltage used as the `vCalHigh` anchor point (V) | 60.0 | Should match the voltage used when running `CAL VH` |
 | `DAC_ADC_TOLERANCE` | Measured voltage at DAC-ADC calibration point (mV) | 400.00 | Deviation stored, but not actively used |
 | `iCalLow` | Current correction factor at low calibration point | 1.0 | Set automatically by `CAL CURRL` |
 | `iRefLow` | Reference current at the low calibration point (stored in A) | 0.1 A (100 mA) | Set automatically by `CAL CURRL` |
@@ -82,11 +84,24 @@ CAL CV 1.0000
 ```
 Sets the CV mode trigger voltage calibration factor.
 
-### Set Voltage Display Calibration
+### Set High-Point Voltage Calibration
 ```
-CAL DUTV 1.0000 (can be 0.xxxx or 1.xxxx)
+CAL VH <actual_V> <oled_V>
 ```
-Adjusts the DUT voltage reading calibration.
+Sets the DUT voltage correction factor at the high reference point. Supply two values: the **actual voltage** (measured by your reference meter) then the **OLED reading**. The firmware calculates `vCalHigh = actual / oled` and sets `vRefHigh` to `actual_V`.
+
+Example: actual meter reads 60.00V, OLED shows 59.85V:
+```
+CAL VH 60.00 59.85
+```
+
+> **Two-point model:** Below `vRefLow` (default 2.5V) the hardware trimmer controls accuracy — no software correction is applied. Between `vRefLow` and `vRefHigh` the correction is linearly interpolated. Above `vRefHigh` the `vCalHigh` factor is applied flat.
+
+### Set Low Anchor Voltage
+```
+CAL VREF <voltage>
+```
+Sets `vRefLow` — the voltage below which no software correction is applied (default 2.5V). Only change this if you need to adjust where software correction kicks in.
 
 ### Set DAC-ADC Calibration Point
 ```
@@ -154,21 +169,24 @@ Exits calibration mode. The OLED and serial monitor will display instructions to
 ```
 > CAL SHOW
 === Current Calibration Values ===
-dutVcalib    : 1.000000
+vCalHigh     : 1.000000000
+vRefLow  (V) : 2.500
+vRefHigh (V) : 60.000
 DAC_ADC_TOLER: 400.00
-iCalLow      : 1.000000
+iCalLow      : 1.000000000
 iRefLow  (A) : 0.100
-iCalHigh     : 1.000000
+iCalHigh     : 1.000000000
 iRefHigh (A) : 8.000
-cvCalFactor  : 1.000000
+cvCalFactor  : 1.000000000
 ==================================
 
 > CAL CV 1.0000
-cvCalFactor set to: 1.000000
+cvCalFactor set to: 1.000000000
 Use 'CAL SAVE' to persist
 
-> CAL DUTV 1.0000
-dutVcalib set to: 1.000000
+> CAL VH 60.00 59.85
+vCalHigh set to: 1.002506266
+vRefHigh set to: 60.000
 Use 'CAL SAVE' to persist
 
 > CAL CURRL 100 99
@@ -213,23 +231,35 @@ https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
    ```
 6. Power cycle and test again
 
-### Voltage Display Calibration
+### Voltage Display Calibration (Two-Point)
 
-**Problem:** Voltage display doesn't match calibrated DMM
+**Problem:** Voltage display doesn't match calibrated DMM at higher voltages
 
-**Procedure:**
-1. Apply a known voltage (e.g., 10.000V from calibrated source)
-2. Note the Dynamic Load's displayed voltage (e.g., 9.950V)
-3. Calculate calibration factor:
+**How it works:** Below `vRefLow` (default 2.5V) the hardware trimmer handles accuracy — no software correction is applied. From `vRefLow` up to `vRefHigh` the firmware linearly interpolates the correction. Above `vRefHigh` the correction is applied flat. Calibrate at the highest voltage your setup can deliver for best accuracy.
+
+**Phase 1 — Collect readings in normal operation:**
+1. Apply a stable high voltage to the DUT input (e.g., 60V from a calibrated source)
+2. Note your reference meter reading → `actual_V` (e.g., 60.00V)
+3. Note what the OLED displays → `oled_V` (e.g., 59.85V)
+
+**Phase 2 — Enter calibration mode and type the values:**
+4. Enter calibration mode (hold button during boot)
+5. Connect serial terminal at 9600 baud, type `CAL` to start
+6. Type the two readings — actual first, OLED second:
    ```
-   dutVcalib = actual_voltage / displayed_voltage
-   dutVcalib = 10.000 / 9.950 = 1.005025
+   CAL VH 60.00 59.85
    ```
-4. Enter calibration mode and set:
+   The firmware calculates `vCalHigh = 60.00 / 59.85 = 1.002506` and sets `vRefHigh = 60.0` automatically.
+7. Optionally adjust the low anchor if needed (leave at default 2.5V in most cases):
    ```
-   CAL DUTV 1.005025
+   CAL VREF 2.5
+   ```
+8. Save and exit:
+   ```
    CAL SAVE
+   CAL EXIT
    ```
+9. Power cycle and verify — OLED voltage should now match your meter
 
 ### Current Display Calibration (Two-Point)
 
