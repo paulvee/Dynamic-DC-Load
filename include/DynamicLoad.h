@@ -109,8 +109,10 @@ extern const double voltage_ref;
 extern const double dc_cal_factor;
 extern double currOffset;
 
-// Runtime calibration values (loaded from DL_Cal_Values.ini)
-extern double dutVcalib;          // DUT voltage calibration factor
+// Runtime calibration values (loaded from NVS at boot)
+extern double vCalHigh;           // DUT voltage correction factor at high reference point
+extern double vRefLow;            // Low anchor voltage (V) — factor = 1.0 below this
+extern double vRefHigh;           // High reference voltage (V) where vCalHigh was measured
 extern double DAC_ADC_TOLERANCE;  // DAC-ADC calibration point in mV (measured voltage at calibration point)
 extern double iCalLow;            // Current correction factor at low reference point
 extern double iRefLow;            // True current at low calibration point (A)

@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 // Firmware version
-const String FW_VERSION = "7.1.7";
+const String FW_VERSION = "7.1.8";
 
 //=============================================================================
 // PIN DEFINITIONS
@@ -110,9 +110,16 @@ const String FW_VERSION = "7.1.7";
 #define I_GAIN 2.5000  // Hardware current gain (V-to-A conversion factor) - do not change
 
 // Default calibration values (used if no saved calibration found)
-#define DEFAULT_DUT_V_CALIB 1.0           // Optional DUT voltage calibration factor
 #define DEFAULT_DAC_ADC_TOLERANCE 400.00  // DAC-ADC calibration point in mV (measured voltage at calibration point)
 #define DEFAULT_CV_CAL_FACTOR 1.0         // CV trigger point voltage calibration factor
+
+// Two-point DUT voltage calibration defaults
+// vCalHigh: correction factor at the high reference voltage (actual / oled)
+// vRefLow:  low anchor voltage — below this, factor = 1.0 (hardware trimmer handles it)
+// vRefHigh: high reference voltage in V where vCalHigh was measured
+#define DEFAULT_VCAL_HIGH 1.0   // Correction factor at high voltage reference point
+#define DEFAULT_VREF_LOW 2.5    // Low anchor voltage (V) — flat below this
+#define DEFAULT_VREF_HIGH 60.0  // High reference voltage (V)
 
 // Two-point current calibration defaults
 // iCalLow/High: correction factors (ammeter / DL-displayed) at each reference point

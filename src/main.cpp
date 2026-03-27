@@ -105,8 +105,10 @@ const double voltage_ref = 4.096;
 const double dc_cal_factor = 24.15;
 double currOffset = 0.0;
 
-// Runtime calibration values (loaded from DL_Cal_Values.ini at boot)
-double dutVcalib = DEFAULT_DUT_V_CALIB;
+// Runtime calibration values (loaded from NVS at boot)
+double vCalHigh = DEFAULT_VCAL_HIGH;  // DUT voltage correction factor at high reference point
+double vRefLow = DEFAULT_VREF_LOW;    // Low anchor voltage (V) — factor = 1.0 below this
+double vRefHigh = DEFAULT_VREF_HIGH;  // High reference voltage (V) where vCalHigh was measured
 double DAC_ADC_TOLERANCE = DEFAULT_DAC_ADC_TOLERANCE;
 double iCalLow = DEFAULT_ICAL_LOW;    // Current correction factor at low reference point
 double iRefLow = DEFAULT_IREF_LOW;    // True current at low calibration point (A)
@@ -169,6 +171,32 @@ void setup() {
 
     Serial.print("\n\r\n\rDynamic DC Load - Version ");
     Serial.println(FW_VERSION);
+
+    // Print reset reason — helps diagnose differences between software/hardware reset
+    esp_reset_reason_t resetReason = esp_reset_reason();
+    Serial.print("- Reset reason: ");
+    switch (resetReason) {
+        case ESP_RST_POWERON:
+            Serial.println("Power-on / EN button");
+            break;
+        case ESP_RST_SW:
+            Serial.println("Software reset (ESP.restart)");
+            break;
+        case ESP_RST_DEEPSLEEP:
+            Serial.println("Wake from deep sleep");
+            break;
+        case ESP_RST_BROWNOUT:
+            Serial.println("Brownout");
+            break;
+        case ESP_RST_WDT:
+            Serial.println("Watchdog timeout");
+            break;
+        default:
+            Serial.print("Other (");
+            Serial.print(resetReason);
+            Serial.println(")");
+            break;
+    }
 
     // Initialize calibration manager and load values from Preferences
     if (!CalibrationManager::begin()) {
@@ -383,6 +411,18 @@ void setup() {
                 if (digitalRead(ENC_BUT) == LOW) {
                     delay(50);  // Debounce
                     if (digitalRead(ENC_BUT) == LOW) {
+                        // Wait for button release before restarting.
+                        // If we restart while the button is still held, the boot
+                        // sequence reads the button as LOW and re-enters calibration
+                        // mode, bypassing the normal boot with the saved values.
+                        while (digitalRead(ENC_BUT) == LOW) {
+                            esp_task_wdt_reset();
+                            delay(10);
+                        }
+                        delay(100);  // Extra debounce after release
+                        Serial.println("\nRestarting...");
+                        Serial.flush();
+                        delay(100);  // Allow serial to flush before reset
                         ESP.restart();
                     }
                 }
@@ -999,9 +1039,22 @@ void readDutV() {
     // Read the DUT voltage from ADS1115
     // Dynamic gain control for optimal resolution
 
+    // Two-point voltage calibration factor:
+    // - Below vRefLow : factor = 1.0 (hardware trimmer calibrates this region)
+    // - vRefLow..vRefHigh: linearly interpolate from 1.0 to vCalHigh
+    // - Above vRefHigh: flat at vCalHigh
+    // Applied to the raw (uncalibrated) voltage for gain-switching decisions.
+    auto dutVcalFactor = [](double rawVolts) -> double {
+        extern double vCalHigh, vRefLow, vRefHigh;
+        if (rawVolts <= vRefLow) return 1.0;
+        if (rawVolts >= vRefHigh) return vCalHigh;
+        return 1.0 + (rawVolts - vRefLow) / (vRefHigh - vRefLow) * (vCalHigh - 1.0);
+    };
+
     // read the adc value so we can use it to find the optimum gain setting for the ADC
     rawV = ADS.readADC(1);
-    double local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
+    double rawVolts = ADS.toVoltage(rawV) * dc_cal_factor;
+    double local_dutV = rawVolts * dutVcalFactor(rawVolts);
 
     // Dynamically adjust gain based on the just measured voltage, and then read
     // the voltage again with the new gain setting for optimal resolution - this
@@ -1011,22 +1064,26 @@ void readDutV() {
         ADS.setGain(0);
         adcGain = 0;
         rawV = ADS.readADC(1);
-        local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
+        rawVolts = ADS.toVoltage(rawV) * dc_cal_factor;
+        local_dutV = rawVolts * dutVcalFactor(rawVolts);
     } else if (local_dutV <= 99 && local_dutV >= 49 && adcGain != 1) {
         ADS.setGain(1);
         adcGain = 1;
         rawV = ADS.readADC(1);
-        local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
+        rawVolts = ADS.toVoltage(rawV) * dc_cal_factor;
+        local_dutV = rawVolts * dutVcalFactor(rawVolts);
     } else if (local_dutV < 49 && local_dutV >= 24 && adcGain != 2) {
         ADS.setGain(2);
         adcGain = 2;
         rawV = ADS.readADC(1);
-        local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
+        rawVolts = ADS.toVoltage(rawV) * dc_cal_factor;
+        local_dutV = rawVolts * dutVcalFactor(rawVolts);
     } else if (local_dutV < 24 && adcGain != 4) {
         ADS.setGain(4);
         adcGain = 4;
         rawV = ADS.readADC(1);
-        local_dutV = ADS.toVoltage(rawV) * dc_cal_factor * dutVcalib;
+        rawVolts = ADS.toVoltage(rawV) * dc_cal_factor;
+        local_dutV = rawVolts * dutVcalFactor(rawVolts);
     }
 
     // Turn on relay only with a positive voltage
@@ -1036,7 +1093,8 @@ void readDutV() {
 
     // Prepare averaged values for OLED display
     rawV_avg = avgVoltage.add(rawV);
-    double local_dispVoltage = ADS.toVoltage(rawV_avg) * dc_cal_factor * dutVcalib;
+    double rawVolts_avg = ADS.toVoltage(rawV_avg) * dc_cal_factor;
+    double local_dispVoltage = rawVolts_avg * dutVcalFactor(rawVolts_avg);
 
     // Write to shared variables with mutex protection
     portENTER_CRITICAL(&mutex);

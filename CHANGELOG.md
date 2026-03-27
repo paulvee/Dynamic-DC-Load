@@ -4,6 +4,30 @@ All notable changes to the ESP32 Dynamic DC Load firmware since version 7.0.0.
 
 ---
 
+## [7.1.8] - 2026-03-27
+
+### Added
+- **Two-point DUT voltage calibration** — replaces single `dutVcalib` trim factor with a low anchor and high reference point plus linear interpolation between them
+  - New NVS parameters: `vCalHigh`, `vRefLow`, `vRefHigh`
+  - New commands: `CAL VH <actual_V> <oled_V>` (sets high-point factor and reference voltage) and `CAL VREF <voltage>` (sets low anchor, default 2.5 V)
+  - Below `vRefLow`: factor = 1.0 — hardware trimmer calibrates this region, software leaves it untouched
+  - `vRefLow` to `vRefHigh`: correction factor linearly interpolated from 1.0 to `vCalHigh`
+  - Above `vRefHigh`: factor flat at `vCalHigh`
+  - Typical workflow: trim hardware to 2.500 V at low voltage, then enter `CAL VH <actual> <oled>` at a high voltage (e.g., 60 V) to capture the resistor-divider linearity error
+- **Boot reset-reason log** — startup now prints the reset cause (`Power-on / EN button`, `Software reset (ESP.restart)`, etc.) to the serial monitor for diagnostics
+
+### Changed
+- **`dutVcalib` retired** — replaced by `vCalHigh` / `vRefLow` / `vRefHigh` NVS keys. First boot after update resets voltage cal to defaults (all factors 1.0); re-calibration required
+- **Calibration display precision increased** — `dutVcalib`, `cvCalFactor`, `iCalLow`, `iCalHigh` now displayed to 9 decimal places (was 6); entered values echo back at full precision
+- **CAL EXIT restart** — rotary button now waits for button release before calling `ESP.restart()`, plus `Serial.flush()` + 100 ms settle before reset for a clean restart sequence
+- **Calibration command menu** — aligned description column for all commands; `CAL DUTV` removed (replaced by `CAL VH` / `CAL VREF`)
+
+### Notes
+- Old `dutVcalib` NVS key is orphaned on upgrade — no migration needed, defaults to 1.0 on first boot
+- Current calibration (`iCalLow`, `iCalHigh`, etc.) is unaffected and survives the upgrade
+
+---
+
 ## [7.1.7] - 2026-03-25
 
 ### Changed
