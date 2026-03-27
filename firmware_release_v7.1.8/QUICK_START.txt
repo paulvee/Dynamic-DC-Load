@@ -1,0 +1,149 @@
+╔════════════════════════════════════════════════════════════════╗
+║     Dynamic DC Load v7.1.8 - Calibration Quick Start           ║
+╚════════════════════════════════════════════════════════════════╝
+
+Before you do the software calibration setup, you need to 
+calibrate the hardware first. Details on how to do that, and 
+how to obtain the values needed in the calibration session, you
+should have a look here for a detailed explanation:
+https://www.paulvdiyblogs.net/2024/09/building-diy-dynamic-dc-load.html
+
+ENTERING CALIBRATION MODE
+──────────────────────────
+1. Power off ESP32 or press the EN button
+2. Press and HOLD encoder button
+3. Power on ESP32 or release the EN button (keep holding)
+4. Wait for "CALIBRATION MODE" screen
+5. Release button after screen appears
+
+TIP: Start holding button when screen blanks from previous session
+
+
+SERIAL SETUP
+────────────
+Baud Rate: 9600
+Port: Check Device Manager (Windows) or ls /dev/ttyUSB* (Linux)
+
+Recommended terminals:
+  PuTTY            - Best choice, works out of the box
+  Arduino IDE 2.x  - Also works out of the box
+
+Terminals that do NOT work:
+  VSCode built-in serial monitor  - Resets ESP32 on first keystroke
+  PlatformIO pio device monitor   - Same issue
+
+Tera Term 5 works but requires setup BEFORE connecting:
+  Setup -> Serial Port -> uncheck DTR and RTS
+
+
+CALIBRATION COMMANDS
+────────────────────
+Type "CAL" alone to show full command menu
+
+CAL SHOW                         - Display current calibration values
+CAL CV <value>                   - Set CV mode calibration factor
+CAL VH <actual_V> <oled_V>      - Set high-point voltage calibration
+CAL VREF <voltage>               - Set low anchor voltage (default 2.5V)
+CAL DUTC <value>                 - Set DAC-ADC calibration point (mV)
+CAL CURRL <set_mA> <oled_mA>    - Set low-point current calibration
+CAL CURRH <set_mA> <oled_mA>    - Set high-point current calibration
+CAL SAVE                         - Save changes to ESP32 memory (REQUIRED!)
+CAL RESET                        - Restore factory defaults
+CAL EXIT                         - Exit calibration (see exit procedure below)
+
+Commands are case-insensitive (CAL or cal both work)
+Backspace and Ctrl-C supported for editing
+
+
+EXITING CALIBRATION MODE
+─────────────────────────
+IMPORTANT: Always follow this sequence to avoid locking up the ESP32.
+
+1. Type CAL EXIT and press Enter
+2. Read the OLED and serial monitor message
+3. Disconnect the USB cable FIRST
+4. Then close the serial monitor
+5. Reconnect USB — ESP32 boots normally
+   OR press the rotary encoder button after disconnecting USB to restart
+
+If you closed the serial monitor before pulling the cable:
+  OLED freezes, EN button does not respond.
+  Recovery: pull USB cable + power cycle the board + reconnect USB.
+  The 22 uF capacitor on the EN line (C44 on the PCB) must be installed —
+  it prevents reset-on-connect when you reconnect the serial monitor.
+
+
+CALIBRATION PARAMETERS
+──────────────────────
+• cvCalFactor (default 1.0)
+  Affects CV mode trigger point
+  Range: typically 1.0 to 1.10
+  Calibrate at 50V for best accuracy
+
+• vCalHigh (default 1.0)
+  High-point DUT voltage correction factor (upper end of range)
+  Below vRefLow: hardware trimmer controls accuracy (factor = 1.0)
+  Between vRefLow and vRefHigh: linear interpolation applied
+  Range: typically 0.99 to 1.01
+
+• vRefLow (default 2.5V)
+  Low anchor voltage — below this point no software cal is applied
+  Leave at default unless you need to adjust the crossover point
+
+• vRefHigh (default 60.0V)
+  High reference voltage used as the calibration anchor for vCalHigh
+  Set to the actual voltage you used when measuring for CAL VH
+
+• iCalLow / iRefLow (defaults 1.0 / 100 mA)
+  Low-end current calibration anchor point
+  Factor applied below the high reference
+
+• iCalHigh / iRefHigh (defaults 1.0 / 8000 mA)
+  High-end current calibration anchor point
+  Factor applied above the low reference
+
+• DUTCurrent (default 400.00)
+  Factory DAC-ADC calibration point in mV
+  Usually doesn't need adjustment
+
+
+DUT VOLTAGE CALIBRATION (Two-Point)
+─────────────────────────────────────
+Goal: make the OLED voltage display match your reference meter at high voltage.
+The hardware trimmer (if fitted) handles accuracy below vRefLow (~2.5V).
+
+Phase 1 — Collect readings during NORMAL OPERATION:
+  1. Apply a stable high voltage (e.g., 60V) to the DUT input
+  2. Note what your reference meter reads  → actual_V  (e.g., 60.00)
+  3. Note what the OLED displays           → oled_V   (e.g., 59.85)
+
+Phase 2 — Enter calibration and type the values:
+  4. Enter calibration mode (hold button during boot)
+  5. Connect serial terminal at 9600 baud
+  6. Type:  CAL VH 60.00 59.85    (actual=60.00V, oled=59.85V)
+  7. Optionally: CAL VREF 2.5     (set low anchor — usually leave default)
+  8. Type:  CAL SAVE
+  9. Type:  CAL EXIT  (follow exit procedure above!)
+ 10. Power cycle and verify: OLED voltage now matches your meter
+
+
+CURRENT DISPLAY CALIBRATION (Two-Point)
+────────────────────────────────────────
+Goal: make the OLED current display match the encoder set-point exactly.
+No external ammeter is needed.
+
+Phase 1 — Collect readings during NORMAL OPERATION:
+  1. Run the load at a low current (e.g., 100 mA)
+  2. Note what the encoder is set to    → set_mA  (e.g., 100)
+  3. Note what the OLED displays        → oled_mA (e.g.,  97)
+  4. Repeat at a high current (e.g., 3000 mA)
+  5. Note set_mA (e.g., 3000) and oled_mA (e.g., 2980)
+
+Phase 2 — Enter calibration and type the values:
+  6. Enter calibration mode (hold button during boot)
+  7. Connect serial terminal at 9600 baud
+  8. Type:  CAL CURRL 100 97       (low point: set=100, oled=97)
+  9. Type:  CAL CURRH 3000 2980    (high point: set=3000, oled=2980)
+ 10. Type:  CAL SAVE
+ 11. Type:  CAL EXIT  (follow exit procedure above!)
+ 12. Power cycle and verify: OLED now matches set-point

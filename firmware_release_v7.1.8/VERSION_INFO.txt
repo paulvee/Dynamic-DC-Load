@@ -1,0 +1,112 @@
+Dynamic DC Load Firmware - Version 7.1.8
+=========================================
+
+Release Date: March 27, 2026
+Build: ESP32 DevKit1, Arduino Framework
+Repository: https://github.com/paulvee/Dynamic-DC-Load
+
+---
+
+WHAT'S NEW IN v7.1.8
+--------------------
+
+Changes:
+  • Two-point DUT voltage calibration system
+    - Replaces single dutVcalib factor with a two-point interpolation model
+    - Below vRefLow (default 2.5V): hardware trimmer handles accuracy; cal factor = 1.0
+    - Between vRefLow and vRefHigh: linear interpolation using vCalHigh factor
+    - Above vRefHigh: flat correction at vCalHigh (no extrapolation)
+    - New commands: CAL VH <actual_V> <oled_V> and CAL VREF <voltage>
+    - Removed: CAL DUTV (replaced by CAL VH)
+  • Calibration display precision increased from 6 to 9 decimal places
+    - Applies to vCalHigh, cvCalFactor, iCalLow, iCalHigh
+  • CAL EXIT improvement — waits for button release before restarting
+    - Serial.flush() + 100ms delay added before ESP.restart()
+  • Boot diagnostic — prints reset reason at startup (software/power-on/etc.)
+
+---
+
+v7.1.7 FEATURES (INCLUDED)
+---------------------------
+
+  • Calibration guide (CALIBRATION_GUIDE.md) — major update
+    - Added serial terminal compatibility table
+        PuTTY             - Recommended, works out of the box
+        Arduino IDE 2.x   - Works out of the box
+        Tera Term 5       - Works after disabling DTR/RTS in Serial Port settings
+        VSCode monitor    - Not supported (resets ESP32 on first keystroke)
+        PlatformIO monitor - Not supported (same issue)
+    - Expanded CAL EXIT section: numbered exit sequence and inline recovery
+    - New troubleshooting entry: ESP32 Stuck in Reset After Closing Serial Monitor
+    - Added C44 PCB cross-reference: 22 uF cap on EN line must always be installed
+
+---
+
+v7.1.6 FEATURES (INCLUDED)
+---------------------------
+
+  • Two-point current calibration system
+    - Replaces single-point shuntVcalib with two anchor points
+    - Compensates for DAC non-linearity across the full current range
+    - No external ammeter required — compares set current vs. OLED display
+    - New commands: CAL CURRL (low-point) and CAL CURRH (high-point)
+    - Both accept: <set_mA> <oled_mA>  (values in milliamps)
+  • System lock-up fixes
+    - Removed while(!Serial) that blocked indefinitely on newer ESP32 platform
+    - Added Serial.setTxBufferSize(0) to prevent TX buffer blocking on close
+  • Cal mode flood fix
+    - Firmware now waits for user to type CAL before printing any output
+  • Improved CAL EXIT procedure
+    - OLED and serial both instruct: disconnect USB cable before closing terminal
+    - Rotary button press triggers clean ESP.restart() after cable disconnect
+
+---
+
+v7.1.2 FEATURES (INCLUDED)
+---------------------------
+
+  • Battery Tester Protocol - Optimized serial communication
+    - Streamlined data reporting for improved performance
+    - Enhanced compatibility with Battery Tester v2.1.0+ features
+    - Supports Stop button and auto-ranging capabilities
+
+---
+
+v7.1.1 FEATURES (INCLUDED)
+---------------------------
+
+Bug Fixes:
+  • Fan control in calibration mode now works correctly
+    - Moved fan PWM channel setup earlier in boot sequence
+
+---
+
+v7.1.0 FEATURES (INCLUDED)
+---------------------------
+
+  • Runtime calibration system — calibrate without recompilation
+  • Boot-time calibration mode — hold encoder button during power-on
+  • ESP32 Preferences storage — calibration persists across firmware updates
+  • Serial command interface — calibration commands via serial terminal
+  • Binary distribution friendly — no development tools needed for calibration
+
+---
+
+FILES IN THIS PACKAGE
+---------------------
+
+  bootloader.bin     - ESP32 bootloader (flash at 0x1000)
+  partitions.bin     - Partition table (flash at 0x8000)
+  firmware.bin       - Main application (flash at 0x10000)
+  flash_firmware.bat - Windows auto-flash script
+  QUICK_START.txt    - Calibration quick reference
+  README.md          - Full installation and usage guide
+
+---
+
+COMPATIBLE HARDWARE
+-------------------
+
+  • ESP32 DevKit1 (38-pin)
+  • Custom Dynamic DC Load PCB
+  • Recommended: Battery Tester v2.1.2 or later
