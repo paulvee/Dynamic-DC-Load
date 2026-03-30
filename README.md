@@ -1,5 +1,7 @@
 # Dynamic DC Load Firmware
 
+The hardware information is located here: https://github.com/paulvee/Dynamic-DC-Load-Hardware
+
 **ESP32 Dynamic DC Load Firmware — v7.1.8**  
 Platform: ESP32 DevKit1 | Build system: PlatformIO  
 Author: Paul Versteeg
