@@ -39,7 +39,7 @@ The executable will be created in the `dist/` folder.
 ### macOS
 
 - Icon: Needs `icon.icns` format
-- Convert from .ico: 
+- Convert from .ico:
   ```bash
   # Install imagemagick if needed: brew install imagemagick
   convert icon.ico icon.icns
@@ -53,6 +53,58 @@ The executable will be created in the `dist/` folder.
 - Output: `dist/BatteryTester`
 - Make executable: `chmod +x dist/BatteryTester`
 - Users need serial port permissions: `sudo usermod -a -G dialout $USER` (logout/login required)
+- **System dependency required:** PyQt6's `xcb` platform plugin needs `libxcb-cursor0`, which is
+  not preinstalled on many distros (confirmed missing by default on Linux Mint 21/22 and Ubuntu).
+  Without it, the built executable aborts on startup with:
+  `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`.
+  Install it with:
+  ```bash
+  sudo apt update && sudo apt install -y libxcb-cursor0
+  ```
+  This applies both to the machine building the executable and to any machine running it
+  afterwards (Debian/Ubuntu/Mint family; other distros use the equivalent package, e.g.
+  `xcb-util-cursor` on Fedora/Arch).
+
+#### Verifying build readiness before running `build_executable.py` (Linux)
+
+These checks catch the two most common Linux build blockers *before* spending time on a build:
+
+```bash
+# 1. Confirm Python 3.8+ is available
+python3 --version
+
+# 2. Create and activate a virtual environment, then install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 3. Verify PyQt6 can actually load Qt (catches missing libxcb-cursor0 etc. early,
+#    without needing a real display via QT_QPA_PLATFORM=offscreen)
+QT_QPA_PLATFORM=offscreen python -c "from PyQt6.QtWidgets import QApplication; QApplication([]); print('PyQt6 loaded OK')"
+
+# 4. Confirm a display session is available for the real GUI
+echo "DISPLAY=$DISPLAY  WAYLAND_DISPLAY=$WAYLAND_DISPLAY  XDG_SESSION_TYPE=$XDG_SESSION_TYPE"
+
+# 5. Confirm serial port permissions (needed to talk to the Arduino/hardware)
+groups $USER | tr ' ' '\n' | grep -x dialout && echo "user IS in dialout group" || echo "user NOT in dialout group"
+```
+
+If step 3 fails with a `libxcb-cursor.so.0` or similar `qt.qpa.plugin` error, install
+`libxcb-cursor0` as shown above and re-run the check. If step 5 reports the user is not in
+`dialout`, run `sudo usermod -a -G dialout $USER` and log out/in before testing serial
+communication.
+
+After building, do a quick smoke test of the actual binary before distributing it:
+
+```bash
+chmod +x dist/BatteryTester
+timeout 5 ./dist/BatteryTester; echo "EXIT_CODE=$?"
+```
+
+An exit code of `124` means `timeout` killed a still-running (i.e. successfully launched) GUI
+process — that's the expected, healthy result. A crash or Qt platform plugin error here means a
+system dependency (see above) is still missing.
 
 ## Distribution
 
@@ -83,6 +135,11 @@ After building:
 - **Windows**: Usually works without special permissions
 - **macOS**: Grant terminal/app "Full Disk Access" in System Preferences → Security & Privacy
 - **Linux**: Add user to dialout group (see above)
+
+### Linux: "Could not load the Qt platform plugin 'xcb'" / app aborts on startup
+- Missing system library `libxcb-cursor0` (Qt6 requirement, not bundled by PyInstaller)
+- Fix: `sudo apt update && sudo apt install -y libxcb-cursor0`, then re-run the executable
+- Verify with the offscreen `QApplication` check described above
 
 ## Manual Build (Advanced)
 

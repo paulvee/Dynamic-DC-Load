@@ -23,7 +23,7 @@ def clean_build_folders():
         if os.path.exists(folder):
             print(f"Cleaning {folder}/...")
             shutil.rmtree(folder)
-    
+
     # Remove spec file if it exists
     spec_files = list(Path('.').glob('*.spec'))
     for spec_file in spec_files:
@@ -46,10 +46,10 @@ def check_dependencies():
 
 def build_executable():
     """Build the executable using PyInstaller"""
-    
+
     # Determine platform-specific settings
     platform = sys.platform
-    
+
     if platform == 'win32':
         name = 'BatteryTester'
         icon_arg = ['--icon=icon.ico'] if os.path.exists('icon.ico') else []
@@ -63,7 +63,7 @@ def build_executable():
         name = 'BatteryTester'
         icon_arg = ['--icon=icon.ico'] if os.path.exists('icon.ico') else []
         windowed = '--windowed'  # Still use windowed for GUI
-    
+
     # PyInstaller command
     cmd = [
         'pyinstaller',
@@ -71,13 +71,13 @@ def build_executable():
         windowed,              # No console window (GUI app)
         '--name', name,        # Executable name
         '--clean',             # Clean PyInstaller cache
-        
+
         # Add local packages
         '--paths', '.',        # Add current directory to Python path
-        
+
         # Add data files (config.ini.example as a template)
         '--add-data', f'config.ini.example{os.pathsep}.',
-        
+
         # Hidden imports for local modules
         '--hidden-import', 'gui',
         '--hidden-import', 'gui.main_window',
@@ -87,7 +87,7 @@ def build_executable():
         '--hidden-import', 'utils',
         '--hidden-import', 'utils.config_manager',
         '--hidden-import', 'utils.export_utils',
-        
+
         # Hidden imports (PyQt6 modules)
         '--hidden-import', 'PyQt6.QtCore',
         '--hidden-import', 'PyQt6.QtGui',
@@ -96,20 +96,20 @@ def build_executable():
         '--hidden-import', 'serial',
         '--hidden-import', 'pandas',
         '--hidden-import', 'numpy',
-        
+
         # Entry point
         'main.py'
     ]
-    
+
     # Add icon if provided
     cmd.extend(icon_arg)
-    
+
     print(f"\nBuilding executable for {platform}...")
     print(f"Command: {' '.join(cmd)}\n")
-    
+
     # Run PyInstaller
     result = subprocess.run(cmd)
-    
+
     if result.returncode == 0:
         print(f"\n✓ Build successful!")
         print(f"\nExecutable location: dist/{name}")
@@ -129,8 +129,13 @@ def build_executable():
         if version:
             release_dir = Path('release')
             release_dir.mkdir(exist_ok=True)
-            dest = release_dir / f"BatteryTester_v{version}.exe"
-            shutil.copy2(f"dist/{name}.exe", dest)
+            # Only Windows builds get a .exe suffix; macOS/Linux binaries have no extension
+            ext = '.exe' if platform == 'win32' else ''
+            built_path = Path('dist') / f"{name}{ext}"
+            dest = release_dir / f"BatteryTester_v{version}-{platform}{ext}"
+            shutil.copy2(built_path, dest)
+            if platform != 'win32':
+                os.chmod(dest, 0o755)
             print(f"\n✓ Copied to {dest}")
         else:
             print("[WARN] Could not determine version for release copy.")
@@ -150,18 +155,18 @@ def main():
     print("Battery Tester - Executable Builder")
     print("=" * 60)
     print()
-    
+
     # Check environment
     if not check_dependencies():
         return 1
-    
+
     # Clean old builds
     response = input("\nClean old build folders? (y/n): ").strip().lower()
     if response == 'y':
         clean_build_folders()
-    
+
     print()
-    
+
     # Build
     if build_executable():
         return 0
