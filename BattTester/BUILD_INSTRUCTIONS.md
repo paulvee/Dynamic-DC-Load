@@ -106,6 +106,65 @@ An exit code of `124` means `timeout` killed a still-running (i.e. successfully 
 process — that's the expected, healthy result. A crash or Qt platform plugin error here means a
 system dependency (see above) is still missing.
 
+#### Installing an app launcher (Linux)
+
+To make the built executable launchable from the desktop's app menu (Cinnamon, GNOME, KDE, etc.)
+instead of always running it from a terminal, register it as a user-level desktop application.
+This does **not** require `sudo` — it only affects your own user account.
+
+Because each rebuild produces a version-named binary (e.g. `BatteryTester_v2.1.2-linux`, then
+`BatteryTester_v2.1.3-linux`, ...), the launcher points at a stable symlink rather than a
+specific versioned file, so you only need to update one symlink after each rebuild instead of
+editing the launcher itself.
+
+```bash
+# 1. Create a stable support directory (one-time)
+mkdir -p ~/.local/share/battery-tester
+
+# 2. Convert the Windows .ico icon to PNG (Linux desktop menus don't reliably render .ico)
+python3 -c "
+from PIL import Image
+img = Image.open('icon.ico')
+img.save('/home/$USER/.local/share/battery-tester/icon.png')
+"
+
+# 3. Symlink the current release binary to a stable, version-independent path
+ln -sf "$(pwd)/release/BatteryTester_v2.1.2-linux" ~/.local/share/battery-tester/BatteryTester
+
+# 4. Create the desktop entry (registers the app for your user only)
+cat > ~/.local/share/applications/battery-tester.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Battery Tester
+Comment=Dynamic DC Load Battery Discharge Tester
+Exec=/home/USERNAME/.local/share/battery-tester/BatteryTester
+Icon=/home/USERNAME/.local/share/battery-tester/icon.png
+Terminal=false
+Categories=Utility;Electronics;
+StartupNotify=true
+EOF
+# Replace USERNAME with your actual username in the Exec/Icon lines above
+
+# 5. Make it executable and refresh the desktop menu cache
+chmod +x ~/.local/share/applications/battery-tester.desktop
+update-desktop-database ~/.local/share/applications
+desktop-file-validate ~/.local/share/applications/battery-tester.desktop && echo "Desktop file is VALID"
+```
+
+"Battery Tester" should now appear in the app menu (search for "Battery"); log out/in if it
+doesn't show immediately.
+
+**After rebuilding a newer version**, just repoint the symlink — no need to touch the
+`.desktop` file:
+
+```bash
+ln -sf "$(pwd)/release/BatteryTester_v<NEW_VERSION>-linux" ~/.local/share/battery-tester/BatteryTester
+```
+
+Requires Pillow (`pip install Pillow`, or it's already available if installed system-wide/via
+another dependency) for the icon conversion step. If you'd rather skip Python, ImageMagick's
+`convert icon.ico icon.png` works the same way.
+
 ## Distribution
 
 After building:
