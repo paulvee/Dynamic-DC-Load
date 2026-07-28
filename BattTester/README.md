@@ -50,7 +50,7 @@ This is a one-time confirmation per machine. After that it runs without promptin
 
 Windows:
 ```bash
-cd "C:\Users\pwver\Documents\Hobby\Battery Tester\Batt Tester"
+cd "C:\Users\[user]\Documents\Hobby\Battery Tester\Batt Tester"
 ```
 
 Linux/Mac:
@@ -85,7 +85,7 @@ pip install -r requirements.txt
 Navigate to the project directory first, then run:
 
 ```bash
-cd "C:\Users\pwver\Documents\Hobby\Battery Tester\Batt Tester"
+cd "C:\Users\[user]\Documents\Hobby\Battery Tester\Batt Tester"
 python main.py
 ```
 
@@ -222,6 +222,6 @@ SOFTWARE.
 
 ## Credits
 
-**Authors:** Paul Versteeg & Bud Bennett (2026)  
+**Authors:** Paul Versteeg & Bud Bennett (2026) with the help of AI Claude
 **Original Concept:** Based on Delphi Battery Tester by John Lowen (2019, in memory)  
 **Firmware:** ESP32 Dynamic Load controller v7.1.2+
