@@ -50,7 +50,7 @@ This is a one-time confirmation per machine. After that it runs without promptin
 
 Windows:
 ```bash
-cd "C:\Users\[user]\Documents\Hobby\Battery Tester\Batt Tester"
+cd "C:\Users\[user_name]\Documents\Hobby\Battery Tester\Batt Tester"
 ```
 
 Linux/Mac:
@@ -85,7 +85,7 @@ pip install -r requirements.txt
 Navigate to the project directory first, then run:
 
 ```bash
-cd "C:\Users\[user]\Documents\Hobby\Battery Tester\Batt Tester"
+cd "C:\Users\[user_name]\Documents\Hobby\Battery Tester\Batt Tester"
 python main.py
 ```
 
