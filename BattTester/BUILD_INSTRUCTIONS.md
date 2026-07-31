@@ -96,8 +96,9 @@ If step 3 fails with a `libxcb-cursor.so.0` or similar `qt.qpa.plugin` error, in
 communication.
 
 # Run build script
+```bash
 python build_executable.py
-
+```
 After building, do a quick smoke test of the actual binary before distributing it:
 
 ```bash
