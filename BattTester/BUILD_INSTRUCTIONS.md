@@ -95,7 +95,7 @@ If step 3 fails with a `libxcb-cursor.so.0` or similar `qt.qpa.plugin` error, in
 `dialout`, run `sudo usermod -a -G dialout $USER` and log out/in before testing serial
 communication.
 
-# Run build script
+### Run build script
 ```bash
 python build_executable.py
 ```
